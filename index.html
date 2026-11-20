@@ -150,6 +150,14 @@
   }
   .sleeve.add:hover { border-color: var(--brass); color: var(--brass); }
   .sleeve.add .plus { font-size: 34px; line-height: 1; }
+  .sleeve .cloud { position: absolute; z-index: 2; left: 8px; top: 6px; font-size: 13px; opacity: .85; }
+  .drive {
+    font: inherit; font-size: 13px; cursor: pointer; margin-top: -16px;
+    background: transparent; color: var(--cream); border: 0; border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgba(243,231,211,.3); padding: 7px 14px; opacity: .85;
+  }
+  .drive:hover { color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+  .drive.ok { box-shadow: inset 0 0 0 1px rgba(201,162,91,.6); }
 </style>
 </head>
 <body>
@@ -171,6 +179,7 @@
 <div class="now" id="now">Plak yok</div>
 
 <div class="shelf-title">Plak kutusu</div>
+<button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
 <div class="crate" id="crate"></div>
 
 <input type="file" id="file" accept="audio/*" multiple hidden>
@@ -178,10 +187,18 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const vinyl = $("vinyl"), arm = $("arm"), led = $("led"), audio = $("audio"), crate = $("crate");
+const vinyl = $("vinyl"), arm = $("arm"), led = $("led"), audio = $("audio"), crate = $("crate"), driveBtn = $("drive");
 let records = [], current = null, playing = false, busy = false, objectUrl = null;
 
-/* ---------- saklama (bu tarayıcıda kalır) ---------- */
+/* ---------- Google Drive ayarları ---------- */
+// Dijital Kütüphanem ile aynı Google istemci kimliği (aynı site adresinde çalışır).
+const CLIENT_ID = "321840054260-h70e9ug58rsoo759adndmth3fidok168.apps.googleusercontent.com";
+const SCOPE = "https://www.googleapis.com/auth/drive.file";
+const API = "https://www.googleapis.com/drive/v3";
+const UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
+const FOLDER_NAME = "Plak Çalarım";
+
+/* ---------- saklama (bu tarayıcıda kalır, Drive'ın önbelleği) ---------- */
 const dbReady = new Promise((res, rej) => {
   const r = indexedDB.open("plak-calarim", 1);
   r.onupgradeneeded = () => r.result.createObjectStore("plaklar", { keyPath: "id" });
@@ -201,11 +218,168 @@ const dbAll = () => tx("readonly", st => st.getAll());
 const dbPut = rec => tx("readwrite", st => st.put(rec));
 const dbDel = id  => tx("readwrite", st => st.delete(id));
 
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k)    { try { localStorage.removeItem(k); } catch {} },
+};
+
+/* ---------- Google girişi ---------- */
+let token = null, tokenExp = 0, tokenClient = null;
+{ const t = ls.get("plak-token", null); if (t && t.exp > Date.now() + 60000) { token = t.v; tokenExp = t.exp; } }
+const haveToken = () => !!token && Date.now() < tokenExp - 60000;
+const wasConnected = () => ls.get("plak-drive", false);
+
+const gisLoaded = new Promise(res => {
+  const s = document.createElement("script");
+  s.src = "https://accounts.google.com/gsi/client"; s.async = true;
+  s.onload = res; s.onerror = res;
+  document.head.appendChild(s);
+});
+
+// Kullanıcı dokunuşunun içinde çağrılmalı (açılır pencere engellenmesin diye beklemeden çalışır).
+function getToken() {
+  if (haveToken()) return Promise.resolve(token);
+  if (!(window.google && google.accounts && google.accounts.oauth2))
+    return Promise.reject(new Error("Google henüz yüklenmedi, birkaç saniye sonra tekrar dene."));
+  return new Promise((res, rej) => {
+    if (!tokenClient) tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPE, callback: () => {} });
+    tokenClient.callback = r => {
+      if (r.error) return rej(new Error(r.error));
+      token = r.access_token; tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
+      ls.set("plak-token", { v: token, exp: tokenExp }); ls.set("plak-drive", true);
+      res(token);
+    };
+    tokenClient.error_callback = e => rej(new Error(e && e.type === "popup_closed" ? "Giriş penceresi kapatıldı." : "Google girişi açılamadı."));
+    tokenClient.requestAccessToken({ prompt: wasConnected() ? "" : "consent" });
+  });
+}
+
+async function api(url, opts = {}) {
+  const r = await fetch(url.startsWith("http") ? url : API + url,
+    { ...opts, headers: { Authorization: "Bearer " + token, ...(opts.headers || {}) } });
+  if (r.status === 401) { token = null; tokenExp = 0; ls.del("plak-token"); throw new Error("auth"); }
+  if (!r.ok) throw new Error("Drive hatası (" + r.status + ")");
+  return r;
+}
+const jsonHdr = { "Content-Type": "application/json; charset=UTF-8" };
+
+async function folderId() {
+  let id = ls.get("plak-folder", null);
+  if (id) {
+    try { const f = await (await api(`/files/${id}?fields=id,trashed`)).json(); if (!f.trashed) return id; }
+    catch (e) { if (e.message === "auth") throw e; }
+  }
+  const q = encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const l = await (await api(`/files?q=${q}&fields=files(id)&spaces=drive`)).json();
+  if (l.files && l.files.length) id = l.files[0].id;
+  else id = (await (await api("/files?fields=id", { method: "POST", headers: jsonHdr,
+            body: JSON.stringify({ name: FOLDER_NAME, mimeType: "application/vnd.google-apps.folder" }) })).json()).id;
+  ls.set("plak-folder", id);
+  return id;
+}
+
+async function upload(rec, fid) {
+  const type = rec.blob.type || "audio/mpeg";
+  const meta = { name: rec.fileName || (rec.title + "." + rec.type.toLowerCase()), parents: [fid],
+                 appProperties: { title: rec.title, hue: String(rec.hue), added: String(rec.added) } };
+  const init = await api(UPLOAD + "?uploadType=resumable&fields=id",
+    { method: "POST", headers: { ...jsonHdr, "X-Upload-Content-Type": type }, body: JSON.stringify(meta) });
+  const loc = init.headers.get("Location");
+  let res;
+  if (loc) {
+    res = await api(loc, { method: "PUT", headers: { "Content-Type": type }, body: rec.blob });
+  } else { // yedek yol: tek parçada yükle
+    const b = "plak" + Math.random().toString(36).slice(2);
+    const body = new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${type}\r\n\r\n`,
+                           rec.blob, `\r\n--${b}--`]);
+    res = await api(UPLOAD + "?uploadType=multipart&fields=id",
+      { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${b}` }, body });
+  }
+  return (await res.json()).id;
+}
+
+const trashFile = id => api(`/files/${id}`, { method: "PATCH", headers: jsonHdr, body: JSON.stringify({ trashed: true }) });
+const pendingDel = () => ls.get("plak-sil", []);
+
+function setDrive(text, ok) { driveBtn.textContent = text; driveBtn.classList.toggle("ok", !!ok); }
+function idleDriveText() {
+  if (!wasConnected()) return setDrive("☁ Drive'a bağlan");
+  const waiting = records.filter(r => !r.driveId && r.blob).length + pendingDel().length;
+  if (!haveToken()) return setDrive(waiting ? `☁ ${waiting} değişiklik bekliyor — eşitlemek için dokun` : "☁ Drive ile eşitle");
+  setDrive(`☁ Drive'da ${records.filter(r => r.driveId).length} plak`, true);
+}
+
+let syncing = false;
+async function sync() {
+  if (syncing || !haveToken()) return;
+  syncing = true; setDrive("☁ Eşitleniyor…");
+  try {
+    const fid = await folderId();
+
+    // başka yerde silinmeyi bekleyenler
+    for (const id of pendingDel()) {
+      try { await trashFile(id); } catch (e) { if (e.message === "auth") throw e; }
+      ls.set("plak-sil", pendingDel().filter(x => x !== id));
+    }
+
+    // Drive'daki plakları listele
+    let files = [], pageToken = "";
+    const q = encodeURIComponent(`'${fid}' in parents and trashed=false`);
+    do {
+      const l = await (await api(`/files?q=${q}&pageSize=1000&fields=nextPageToken,files(id,name,mimeType,appProperties,createdTime)` +
+                                 (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""))).json();
+      files.push(...(l.files || [])); pageToken = l.nextPageToken;
+    } while (pageToken);
+    const ids = new Set(files.map(f => f.id));
+
+    // başka cihazdan silinenleri buradan da kaldır
+    for (const r of [...records]) {
+      if (r.driveId && !ids.has(r.driveId) && !(current && current.id === r.id)) {
+        await dbDel(r.id); records = records.filter(x => x !== r);
+      }
+    }
+    // başka cihazdan eklenenleri getir (çalınca indirilir)
+    const known = new Set(records.map(r => r.driveId).filter(Boolean));
+    for (const f of files) {
+      if (known.has(f.id)) continue;
+      const p = f.appProperties || {};
+      const rec = { id: "d-" + f.id, driveId: f.id, fileName: f.name,
+        title: p.title || cleanTitle(f.name), type: extOf(f.name),
+        hue: p.hue ? +p.hue : Math.floor(Math.random() * 360),
+        added: p.added ? +p.added : Date.parse(f.createdTime) || Date.now(), blob: null };
+      await dbPut(rec); records.push(rec);
+    }
+    records.sort((a, b) => a.added - b.added); render();
+
+    // bu cihazda olup Drive'da olmayanları yükle
+    const todo = records.filter(r => !r.driveId && r.blob);
+    for (let i = 0; i < todo.length; i++) {
+      setDrive(`☁ Drive'a yükleniyor ${i + 1}/${todo.length}…`);
+      todo[i].driveId = await upload(todo[i], fid);
+      await dbPut(todo[i]);
+    }
+    syncing = false; render(); idleDriveText();
+  } catch (e) {
+    syncing = false; render();
+    if (e.message === "auth") setDrive("☁ Drive oturumu bitti — tekrar bağlanmak için dokun");
+    else setDrive("☁ Drive'a ulaşılamadı — tekrar denemek için dokun");
+  }
+}
+
+driveBtn.onclick = async () => {
+  if (syncing) return;
+  try { await getToken(); } catch (e) { setDrive("☁ " + e.message); return; }
+  sync();
+};
+
 /* ---------- plak kutusu ---------- */
 function colors(hue) {
   return { color: `hsl(${hue} 45% 38%)`, art: `linear-gradient(135deg, hsl(${hue} 45% 42%), hsl(${hue} 50% 18%))` };
 }
 function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+function cleanTitle(n) { return n.replace(/\.[^.]+$/, "").replace(/[_]+/g, " "); }
+function extOf(n) { return (n.includes(".") ? n.split(".").pop() : "ses").toUpperCase(); }
 
 function render() {
   crate.innerHTML = "";
@@ -220,18 +394,25 @@ function render() {
     const b = document.createElement("div");
     b.className = "sleeve" + (current && current.id === r.id ? " playing" : "");
     b.tabIndex = 0;
-    b.innerHTML = `<div class="disc"></div><div class="art" style="background:${c.art}"></div>
+    const cloud = !r.blob ? `<div class="cloud" title="Drive'da — çalınca indirilecek">☁</div>` : "";
+    b.innerHTML = `<div class="disc"></div><div class="art" style="background:${c.art}"></div>${cloud}
                    <div class="t">${esc(r.title)}</div><div class="s">${esc(r.type)}</div>
                    <button class="del" title="Plağı sil">×</button>`;
     b.onclick = () => load(r);
     b.onkeydown = e => { if (e.key === "Enter") load(r); };
     b.querySelector(".del").onclick = async e => {
       e.stopPropagation();
-      if (!confirm(`"${r.title}" plağı silinsin mi?`)) return;
+      const extra = r.driveId ? "\n(Drive'daki kopyası da çöp kutusuna taşınır.)" : "";
+      if (!confirm(`"${r.title}" plağı silinsin mi?${extra}`)) return;
       if (current && current.id === r.id) await eject();
+      if (r.driveId) {
+        let done = false;
+        if (haveToken()) { try { await trashFile(r.driveId); done = true; } catch {} }
+        if (!done) ls.set("plak-sil", [...pendingDel(), r.driveId]);
+      }
       await dbDel(r.id);
       records = records.filter(x => x.id !== r.id);
-      render();
+      render(); if (!syncing) idleDriveText();
     };
     crate.appendChild(b);
   });
@@ -241,8 +422,7 @@ $("file").onchange = async e => {
   for (const f of e.target.files) {
     const rec = {
       id: Date.now() + "-" + Math.random().toString(36).slice(2),
-      title: f.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " "),
-      type: (f.name.split(".").pop() || "ses").toUpperCase(),
+      title: cleanTitle(f.name), type: extOf(f.name), fileName: f.name,
       hue: Math.floor(Math.random() * 360),
       blob: f,
       added: Date.now(),
@@ -252,6 +432,7 @@ $("file").onchange = async e => {
   }
   e.target.value = "";
   render();
+  if (haveToken()) sync(); else idleDriveText();
 };
 
 /* ---------- plak çalar ---------- */
@@ -281,6 +462,21 @@ async function eject() {
 
 async function load(r) {
   if (busy || (current && current.id === r.id)) return;
+  if (!r.blob) { // yalnızca Drive'da: önce indir
+    busy = true;
+    const prev = $("now").innerHTML;
+    try {
+      await getToken();
+      $("now").innerHTML = `<b>${esc(r.title)}</b>Drive'dan indiriliyor…`;
+      r.blob = await (await api(`/files/${r.driveId}?alt=media`)).blob();
+      await dbPut(r); render();
+    } catch (e) {
+      busy = false; $("now").innerHTML = prev;
+      alert(e.message === "auth" ? "Drive oturumu bitti, tekrar dokun." : "Bu plak Drive'dan indirilemedi.\n" + e.message);
+      idleDriveText(); return;
+    }
+    busy = false;
+  }
   busy = true;
   if (current) await eject();
   current = r;
@@ -311,8 +507,10 @@ audio.onended = () => { setPlaying(false); if (current) $("now").innerHTML = `<b
 audio.onpause = () => { if (playing && !busy) setPlaying(false); };
 $("eject").onclick = () => { if (!busy) { busy = true; eject().then(() => busy = false); } };
 
-dbAll().then(all => { records = (all || []).sort((a, b) => a.added - b.added); render(); })
-       .catch(() => render());
+driveBtn.hidden = !CLIENT_ID;
+dbAll().then(all => { records = (all || []).sort((a, b) => a.added - b.added); })
+       .catch(() => {})
+       .finally(() => { render(); idleDriveText(); if (haveToken()) sync(); });
 </script>
 </body>
 </html>
