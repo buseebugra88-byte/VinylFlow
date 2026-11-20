@@ -297,14 +297,25 @@
 <button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
 <div class="crate" id="crate"></div>
 
-<div class="ver">sürüm 20 Kasım 2026 · 17:10</div>
+<div class="ver">sürüm 20 Kasım 2026 · 18:20</div>
 <input type="file" id="coverFile" accept="image/*" hidden>
 <input type="file" id="file" accept="audio/*,video/mp4,.mp3,.m4a,.mp4,.m4v,.wav,.ogg,.flac" multiple hidden>
-<audio id="audio"></audio>
+<audio id="audio" preload="auto"></audio>
+<video id="videoPlayer" playsinline preload="auto" style="position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0;pointer-events:none"></video>
 
 <script>
 const $ = id => document.getElementById(id);
-const vinyl = $("vinyl"), arm = $("arm"), led = $("led"), audio = $("audio"), crate = $("crate"), driveBtn = $("drive");
+const vinyl = $("vinyl"), arm = $("arm"), led = $("led"), crate = $("crate"), driveBtn = $("drive");
+// Ses dosyaları <audio> ile, MP4/video dosyaları gizli bir <video> ile çalınır (Safari ses oynatıcısında MP4 açmıyor).
+const audioEl = $("audio"), videoEl = $("videoPlayer");
+let audio = audioEl;
+const MIME = { MP3: "audio/mpeg", M4A: "audio/mp4", AAC: "audio/aac", WAV: "audio/wav", OGG: "audio/ogg", OGA: "audio/ogg",
+               OPUS: "audio/ogg", FLAC: "audio/flac", MP4: "video/mp4", M4V: "video/mp4", MOV: "video/quicktime", WEBM: "video/webm" };
+function mediaBlob(r) {                       // dosya türünü her zaman açıkça bildir
+  const t = MIME[r.type] || (r.blob.type && r.blob.type !== "application/octet-stream" ? r.blob.type : "audio/mpeg");
+  return r.blob.type === t ? r.blob : new Blob([r.blob], { type: t });
+}
+const isVideo = r => /^video\//.test(MIME[r.type] || r.blob.type || "");
 let records = [], current = null, playing = false, busy = false, objectUrl = null;
 
 /* ---------- Google Drive ayarları ---------- */
@@ -797,7 +808,7 @@ async function eject() {
   await wait(500);
   current = null;
   if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
-  audio.removeAttribute("src");
+  audio.removeAttribute("src"); audio.load();
   $("now").textContent = "Plak yok";
   $("play").disabled = $("eject").disabled = true;
   render();
@@ -829,8 +840,11 @@ async function load(r) {
   vinyl.classList.toggle("picture", !!pic);
   if (pic) vinyl.style.setProperty("--pic", `url(${pic})`); else vinyl.style.removeProperty("--pic");
   $("labelText").textContent = r.title;
-  objectUrl = URL.createObjectURL(r.blob);
+  const mb = mediaBlob(r);
+  audio = isVideo(r) ? videoEl : audioEl;
+  objectUrl = URL.createObjectURL(mb);
   audio.src = objectUrl;
+  audio.load();
   render();
   vinyl.classList.add("on");
   await wait(700);
@@ -919,6 +933,9 @@ arm.addEventListener("pointerup", dropNeedle);
 arm.addEventListener("pointercancel", dropNeedle);
 
 $("eject").onclick = () => { if (!busy) { busy = true; eject().then(() => busy = false); } };
+
+// iki oynatıcı da aynı olayları dinlesin
+for (const k of ["ontimeupdate", "onloadedmetadata", "onended", "onpause"]) videoEl[k] = audioEl[k];
 
 driveBtn.hidden = !CLIENT_ID;
 dbAll().then(all => { records = (all || []).sort((a, b) => a.added - b.added); })
