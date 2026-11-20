@@ -21,7 +21,10 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     min-height: 100vh;
-    background: radial-gradient(ellipse at top, #2e241d, var(--bg) 70%);
+    background:
+      radial-gradient(ellipse 60% 45% at 12% 8%, rgba(255,170,80,.20), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 90% 30%, rgba(255,150,60,.08), transparent 70%),
+      linear-gradient(180deg, #2a1f18, #1a130e 60%, #140e0a);
     color: var(--cream);
     font-family: Georgia, "Times New Roman", serif;
     display: flex; flex-direction: column; align-items: center;
@@ -43,35 +46,71 @@
   h1 { font-weight: normal; letter-spacing: .08em; font-size: 26px; }
   h1 small { display: block; font-size: 13px; opacity: .6; letter-spacing: .03em; margin-top: 4px; text-align: center; }
 
-  /* ---------- turntable ---------- */
+  /* ---------- pikap ---------- */
   .deck {
     position: relative;
     width: min(560px, 94vw); aspect-ratio: 1.3;
-    border-radius: 18px;
+    border-radius: 14px;
+    /* ceviz ahşap kasa */
     background:
-      repeating-linear-gradient(92deg, rgba(255,255,255,.035) 0 2px, transparent 2px 9px),
-      linear-gradient(160deg, var(--wood1), var(--wood2));
-    box-shadow: 0 25px 50px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.12), inset 0 0 60px rgba(30,12,0,.55);
-    padding: 6%; filter: sepia(.18) saturate(.95);
+      repeating-linear-gradient(88deg, rgba(0,0,0,.10) 0 1px, transparent 1px 7px, rgba(255,220,170,.05) 7px 8px, transparent 8px 13px),
+      linear-gradient(175deg, #7a4a2a, #5a321b 55%, #43250f);
+    box-shadow: 0 30px 50px rgba(0,0,0,.65), 0 8px 0 #2c170a, inset 0 1px 0 rgba(255,220,170,.25);
+    filter: sepia(.12);
+  }
+  .deck::before { /* koyu üst plaka */
+    content: ""; position: absolute; inset: 3.2%; border-radius: 8px;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at 20% 0%, #3a3632, #1d1b19 60%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), inset 0 2px 6px rgba(0,0,0,.6);
+  }
+  .badge {
+    position: absolute; right: 7%; bottom: 7.5%; padding: .35em .8em; border-radius: 5px;
+    font: 600 clamp(8px, 1.6vw, 11px)/1 Georgia, serif; letter-spacing: .12em; color: #d9c7a4;
+    border: 1px solid rgba(217,199,164,.5); background: rgba(0,0,0,.25);
+  }
+  .knob {
+    position: absolute; right: 8%; bottom: 20%; width: 9%; aspect-ratio: 1; border-radius: 50%;
+    background: repeating-conic-gradient(#2a2a2a 0 6deg, #3a3a3a 6deg 12deg);
+    box-shadow: 0 3px 6px rgba(0,0,0,.6), inset 0 0 0 3px #1a1a1a;
+  }
+  .knob::after { content: ""; position: absolute; left: 47%; top: 10%; width: 6%; height: 30%; background: #e8dcc0; border-radius: 2px; }
+  .knob-label { position: absolute; right: 6.4%; bottom: 15%; font-size: clamp(6px, 1.2vw, 8px); letter-spacing: .1em; color: #a99c86; }
+  .speed { position: absolute; left: 7%; bottom: 7%; display: flex; gap: 6px; }
+  .speed span {
+    font-size: clamp(7px, 1.4vw, 10px); color: #cfc2a8; padding: .35em .6em; border-radius: 4px;
+    background: linear-gradient(#3b3936, #262422); box-shadow: 0 2px 0 #111, inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .speed span.on { color: #ffb36b; }
+  .rest { /* kolun dinlenme yuvası */
+    position: absolute; left: 83%; top: 61%; width: 3.2%; height: 5%;
+    border-radius: 3px 3px 1px 1px; background: linear-gradient(90deg, #6d6d6d, #cfcfcf, #6d6d6d);
+    box-shadow: 0 3px 4px rgba(0,0,0,.6);
   }
   .plate {
     position: absolute; left: 6%; top: 8%;
     width: 62%; aspect-ratio: 1; border-radius: 50%;
-    background: radial-gradient(circle, #3a3a3a 0 60%, #222 61% 100%);
-    box-shadow: inset 0 0 0 6px #555, 0 6px 14px rgba(0,0,0,.5);
+    /* gümüş tabla, kenarında strobo noktaları */
+    background:
+      radial-gradient(circle closest-side, #1b1b1b 0 93%, transparent 93.5%),
+      radial-gradient(circle closest-side, transparent 0 95.5%, #8d8d8d 96%, #d8d8d8 98%, #7a7a7a 100%),
+      repeating-conic-gradient(#e6e6e6 0 1.6deg, #6a6a6a 1.6deg 3.2deg);
+    box-shadow: 0 10px 18px rgba(0,0,0,.6), 0 0 0 1px #000;
   }
   .vinyl {
-    position: absolute; inset: 3%; border-radius: 50%;
+    position: absolute; inset: 3.5%; border-radius: 50%;
     background:
       radial-gradient(circle, transparent 0 31%, rgba(255,255,255,.05) 31.5% 32%, transparent 32.5%),
-      repeating-radial-gradient(circle, #111 0 1.5px, #1b1b1b 1.5px 3px);
-    box-shadow: 0 0 0 1px #000;
+      radial-gradient(circle, transparent 0 60%, rgba(255,255,255,.035) 60.5% 61%, transparent 61.5% 80%, rgba(255,255,255,.035) 80.5% 81%, transparent 81.5%),
+      repeating-radial-gradient(circle, #0e0e0e 0 1.5px, #1a1a1a 1.5px 3px);
+    box-shadow: 0 0 0 1px #000, 0 2px 6px rgba(0,0,0,.6);
     opacity: 0; transform: translateX(120%) scale(.9);
     transition: transform .7s cubic-bezier(.3,.8,.3,1), opacity .4s;
   }
-  .vinyl::after { /* shine */
+  .vinyl::after { /* sıcak ışık yansıması */
     content: ""; position: absolute; inset: 0; border-radius: 50%;
-    background: conic-gradient(from 30deg, transparent 0 15%, rgba(255,255,255,.10) 20%, transparent 26% 65%, rgba(255,255,255,.08) 70%, transparent 76%);
+    background: conic-gradient(from 20deg, transparent 0 10%, rgba(255,200,140,.14) 15%, transparent 22% 60%, rgba(255,210,160,.10) 66%, transparent 73%);
   }
   .vinyl.on { opacity: 1; transform: none; }
   /* resimli plak: resim plağın tamamına basılı, üstünde ince oluklar */
@@ -89,13 +128,14 @@
     position: absolute; inset: 33%; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; text-align: center;
     font-size: clamp(9px, 1.8vw, 13px); line-height: 1.2; padding: 8%;
-    color: #f6ecd8; text-shadow: 0 1px 2px rgba(0,0,0,.35);
-    background-image: radial-gradient(circle, transparent 55%, rgba(60,30,0,.28) 100%),
-                      radial-gradient(circle at 30% 30%, rgba(255,240,210,.18), transparent 60%);
+    color: #fff5e2; text-shadow: 0 1px 2px rgba(0,0,0,.35);
+    background-image: radial-gradient(circle, transparent 0 9%, rgba(0,0,0,.18) 9.5% 10.5%, transparent 11% 80%, rgba(0,0,0,.2) 81% 82%, transparent 83%),
+                      radial-gradient(circle, transparent 55%, rgba(60,30,0,.28) 100%),
+                      radial-gradient(circle at 30% 30%, rgba(255,240,210,.22), transparent 60%);
   }
-  .label::after { /* spindle */
+  .label::after { /* mil */
     content: ""; position: absolute; width: 7%; height: 7%; border-radius: 50%;
-    background: #ddd; left: 46.5%; top: 46.5%;
+    background: radial-gradient(circle at 35% 35%, #fff, #9a9a9a); left: 46.5%; top: 46.5%; box-shadow: 0 1px 2px rgba(0,0,0,.6);
   }
   .label span { transform: translateY(-38%); }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -106,22 +146,17 @@
     transform-origin: 50% 6%;
     transform: rotate(-4deg);
     transition: transform 1.1s ease-in-out;
+    cursor: grab; touch-action: none; z-index: 5;
   }
-  .arm { cursor: grab; touch-action: none; z-index: 5; }
+  .arm svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(3px 6px 4px rgba(0,0,0,.55)); }
   .arm::before { content: ""; position: absolute; top: 0; bottom: -4%; left: -150%; right: -150%; } /* tutması kolay olsun */
   .arm.drag { cursor: grabbing; transition: none; }
   .arm.down { transform: rotate(var(--arm, 32.5deg)); }
-  .arm .pivot {
-    position: absolute; left: 50%; top: 0; width: 260%; aspect-ratio: 1; transform: translateX(-50%);
-    border-radius: 50%; background: radial-gradient(circle, #eee, #888); box-shadow: 0 3px 6px rgba(0,0,0,.5);
-  }
-  .arm .rod {
-    position: absolute; left: 35%; top: 5%; width: 30%; height: 88%;
-    background: linear-gradient(90deg, #888, #eee, #888); border-radius: 4px;
-  }
-  .arm .head {
-    position: absolute; left: -20%; bottom: 0; width: 140%; height: 12%;
-    background: linear-gradient(#333, #111); border-radius: 3px; transform: rotate(18deg);
+  .arm .head { position: absolute; left: -20%; bottom: 0; width: 140%; height: 12%; transform: rotate(18deg); opacity: 0; pointer-events: none; } /* iğne ucunun yeri (ölçüm için) */
+  .armbase { /* kolun döndüğü kaide (gövdeye sabit) */
+    position: absolute; right: 9.5%; top: 6.2%; width: 11%; aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #555, #222 60%, #111);
+    box-shadow: 0 4px 8px rgba(0,0,0,.7), inset 0 0 0 2px #444;
   }
 
   .panel { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: -8px; }
@@ -136,14 +171,19 @@
   .btn.small { font-size: 12px; padding: 6px 12px; opacity: .8; }
   .btn[disabled] { opacity: .35; cursor: default; }
   .btn.ghost { background: transparent; color: var(--cream); box-shadow: inset 0 0 0 1px rgba(243,231,211,.4); }
-  .led { width: 9px; height: 9px; border-radius: 50%; background: #3a2a20; position: absolute; left: 4%; bottom: 6%; }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: #3a2a20; position: absolute; left: 24%; bottom: 9.5%; box-shadow: inset 0 0 0 1px #000; }
   .led.on { background: #ff6a3d; box-shadow: 0 0 10px #ff6a3d; }
 
   /* ---------- crate of records ---------- */
   .shelf-title { font-size: 14px; opacity: .6; letter-spacing: .1em; text-transform: uppercase; }
   .crate {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 18px; width: min(820px, 94vw);
+    gap: 18px; width: min(820px, 94vw); padding: 22px 18px 26px; border-radius: 6px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 46px, rgba(0,0,0,.35) 46px 48px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.08) 0 1px, transparent 1px 9px),
+      linear-gradient(180deg, #8a5a33, #6a4022);
+    box-shadow: inset 0 0 0 10px #5a341b, inset 0 0 30px rgba(0,0,0,.5), 0 18px 30px rgba(0,0,0,.5);
   }
   .sleeve {
     position: relative; aspect-ratio: 1; cursor: pointer;
@@ -180,6 +220,7 @@
     color: var(--cream); align-items: center; justify-content: center; text-align: center; gap: 6px;
   }
   .sleeve.add:hover { border-color: var(--brass); color: var(--brass); }
+  .ver { font-size: 11px; opacity: .35; letter-spacing: .05em; }
   .sleeve.add .plus { font-size: 34px; line-height: 1; }
   .sleeve .cloud { position: absolute; z-index: 2; left: 8px; top: 6px; font-size: 13px; opacity: .85; }
   .drive {
@@ -199,7 +240,42 @@
   <div class="plate">
     <div class="vinyl" id="vinyl"><div class="label" id="label"><span id="labelText"></span></div></div>
   </div>
-  <div class="arm" id="arm"><div class="rod"></div><div class="head"></div><div class="pivot"></div></div>
+  <div class="armbase"></div>
+  <div class="rest"></div>
+  <div class="arm" id="arm" title="İğneyi tutup plağın üstüne bırak">
+    <svg viewBox="0 0 40 477" aria-hidden="true">
+      <defs>
+        <linearGradient id="chrome" x1="0" x2="1">
+          <stop offset="0" stop-color="#7d7d7d"/><stop offset=".45" stop-color="#f4f4f4"/><stop offset=".6" stop-color="#cfcfcf"/><stop offset="1" stop-color="#6e6e6e"/>
+        </linearGradient>
+        <linearGradient id="cw" x1="0" x2="1">
+          <stop offset="0" stop-color="#3a3a3a"/><stop offset=".5" stop-color="#8a8a8a"/><stop offset="1" stop-color="#2e2e2e"/>
+        </linearGradient>
+      </defs>
+      <!-- karşı ağırlık -->
+      <rect x="9" y="-52" width="22" height="34" rx="4" fill="url(#cw)"/>
+      <g stroke="#1e1e1e" stroke-width="1" opacity=".7"><line x1="9" y1="-44" x2="31" y2="-44"/><line x1="9" y1="-38" x2="31" y2="-38"/><line x1="9" y1="-32" x2="31" y2="-32"/><line x1="9" y1="-26" x2="31" y2="-26"/></g>
+      <rect x="17" y="-20" width="6" height="40" fill="url(#chrome)"/>
+      <!-- yatak -->
+      <circle cx="20" cy="28.6" r="13" fill="#2a2a2a" stroke="#888" stroke-width="2"/>
+      <circle cx="20" cy="28.6" r="5" fill="url(#chrome)"/>
+      <!-- S kol -->
+      <path d="M20 40 C 20 150, 34 215, 31 290 S 13 380, 18 418" fill="none" stroke="#5b5b5b" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M20 40 C 20 150, 34 215, 31 290 S 13 380, 18 418" fill="none" stroke="url(#chrome)" stroke-width="4.5" stroke-linecap="round"/>
+      <!-- iğne başlığı -->
+      <g transform="rotate(18 20 440)">
+        <rect x="16" y="412" width="8" height="10" rx="1.5" fill="url(#chrome)"/>
+        <path d="M7 422 h26 l-2 34 h-22 z" fill="#1f1f1f" stroke="#6b6b6b" stroke-width="1.2"/>
+        <circle cx="14" cy="432" r="2" fill="#555"/><circle cx="26" cy="432" r="2" fill="#555"/>
+        <rect x="12" y="444" width="16" height="9" rx="1" fill="#c9a25b"/>
+        <path d="M33 426 q 10 -2 12 6" fill="none" stroke="url(#chrome)" stroke-width="2.4" stroke-linecap="round"/>
+      </g>
+    </svg>
+    <div class="head"></div>
+  </div>
+  <div class="knob"></div><div class="knob-label">SES</div>
+  <div class="speed"><span class="on">33</span><span>45</span></div>
+  <div class="badge">PLAK ÇALARIM · RETRO</div>
   <div class="led" id="led"></div>
 </div>
 
@@ -215,6 +291,7 @@
 <button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
 <div class="crate" id="crate"></div>
 
+<div class="ver">sürüm 20 Kasım 2026 · 17:00</div>
 <input type="file" id="file" accept="audio/*,video/mp4,.mp3,.m4a,.mp4,.m4v,.wav,.ogg,.flac" multiple hidden>
 <audio id="audio"></audio>
 
@@ -544,8 +621,12 @@ async function backfillCovers() {                                 // eski plakla
 }
 
 /* ---------- plak kutusu ---------- */
+const LABELS = ["#d2622f", "#b8362c", "#d9a43a", "#3f8a80", "#c9b48a", "#7b3b2a", "#e07b39", "#556b4f"];
 function colors(hue) {
-  return { color: `hsl(${hue} 32% 36%)`, art: `linear-gradient(135deg, hsl(${hue} 30% 40%), hsl(${hue} 35% 17%))` };
+  const c = LABELS[Math.abs(Math.round(hue)) % LABELS.length];
+  return { color: c, art: `radial-gradient(circle at 70% 45%, ${c} 0 14%, #111 14.5% 16%, transparent 16.5%),
+                           repeating-radial-gradient(circle at 70% 45%, #141414 0 2px, #1d1d1d 2px 4px) 0 0 / 100% 100%,
+                           linear-gradient(135deg, #e9dcc2, #cdb994)` };
 }
 function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 function cleanTitle(n) { return n.replace(/\.[^.]+$/, "").replace(/[_]+/g, " "); }
@@ -718,12 +799,30 @@ $("play").onclick = async () => {
   if (playing) { audio.pause(); setPlaying(false); return; }
   initCrackle(); if (actx && actx.state === "suspended") actx.resume();
   busy = true;
+  // Safari, dokunuştan ~1 sn sonra başlayan sesi engelliyor: sesi dokunur dokunmaz sessizce başlatıp "kilidi açıyoruz".
+  const at = audio.currentTime;
+  audio.muted = true;
+  const unlock = audio.play().catch(e => e);
   setPlaying(true);
   await wait(1100);              // iğne inene kadar bekle
-  $("now").innerHTML = `<b>${esc(current.title)}</b>çalıyor`;
-  try { await audio.play(); } catch (err) { setPlaying(false); alert("Bu dosya çalınamadı."); }
+  const first = await unlock;
+  try {
+    if (first instanceof Error && first.name !== "AbortError") throw first;
+    audio.currentTime = at;
+    audio.muted = false;
+    await audio.play();
+    $("now").innerHTML = `<b>${esc(current.title)}</b>çalıyor`;
+  } catch (err) { audio.muted = false; setPlaying(false); playError(err); }
   busy = false;
 };
+function playError(err) {
+  const n = err && err.name;
+  const why = n === "NotAllowedError" ? "Tarayıcı sesi başlatmaya izin vermedi. Bir kez daha Çal'a bas ya da iğneyi elle plağa koy."
+            : n === "NotSupportedError" || (audio.error && audio.error.code === 4) ? "Bu dosyanın ses biçimini tarayıcı açamıyor."
+            : "";
+  $("now").innerHTML = current ? `<b>${esc(current.title)}</b>çalınamadı` : "Plak yok";
+  alert("Bu dosya çalınamadı." + (why ? "\n" + why : "") + "\n(" + (n || (audio.error ? "kod " + audio.error.code : "bilinmeyen hata")) + ")");
+}
 audio.onended = () => { setPlaying(false); if (current) $("now").innerHTML = `<b>${esc(current.title)}</b>bitti`; };
 audio.onpause = () => { if (playing && !busy) setPlaying(false); };
 /* ---------- iğneyi elle koymak ---------- */
@@ -769,7 +868,7 @@ async function dropNeedle() {
   if (audio.duration && isFinite(audio.duration)) audio.currentTime = k * audio.duration;
   setPlaying(true);
   $("now").innerHTML = `<b>${esc(current.title)}</b>çalıyor`;
-  try { await audio.play(); } catch (err) { setPlaying(false); alert("Bu dosya çalınamadı."); }
+  try { audio.muted = false; await audio.play(); } catch (err) { setPlaying(false); playError(err); }
 }
 arm.addEventListener("pointerup", dropNeedle);
 arm.addEventListener("pointercancel", dropNeedle);
