@@ -74,6 +74,16 @@
     background: conic-gradient(from 30deg, transparent 0 15%, rgba(255,255,255,.10) 20%, transparent 26% 65%, rgba(255,255,255,.08) 70%, transparent 76%);
   }
   .vinyl.on { opacity: 1; transform: none; }
+  /* resimli plak: resim plağın tamamına basılı, üstünde ince oluklar */
+  .vinyl.picture {
+    background:
+      radial-gradient(circle closest-side, transparent 94.5%, #151515 95.5%),
+      repeating-radial-gradient(circle, rgba(0,0,0,.16) 0 1px, rgba(255,255,255,.03) 1px 2px, transparent 2px 4px),
+      radial-gradient(circle closest-side, rgba(255,235,200,.06), rgba(20,10,0,.25)),
+      var(--pic) center / cover;
+  }
+  .vinyl.picture .label { background: transparent !important; box-shadow: none; }
+  .vinyl.picture .label span { display: none; }
   .vinyl.spin { animation: spin 1.8s linear infinite; }
   .label {
     position: absolute; inset: 33%; border-radius: 50%;
@@ -151,7 +161,9 @@
     transition: right .3s; z-index: 0;
   }
   .sleeve:hover .disc { right: -20%; }
-  .sleeve .art { position: absolute; inset: 0; z-index: 1; filter: sepia(.3) saturate(.8); }
+  .sleeve .art { position: absolute; inset: 0; z-index: 1; filter: sepia(.3) saturate(.8); background-size: cover !important; background-position: center !important; }
+  .sleeve.has-cover .t, .sleeve.has-cover .s { text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+  .sleeve.has-cover .art::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.45), transparent 35%, transparent 70%, rgba(0,0,0,.5)); }
   .sleeve .art::after { content: ""; position: absolute; inset: 0;
     background: radial-gradient(circle at 70% 45%, transparent 38%, rgba(0,0,0,.12) 40%, transparent 44%),
                 linear-gradient(180deg, rgba(255,240,210,.08), rgba(0,0,0,.25)); box-shadow: inset 0 0 18px rgba(40,20,0,.5); }
@@ -203,7 +215,7 @@
 <button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
 <div class="crate" id="crate"></div>
 
-<input type="file" id="file" accept="audio/*" multiple hidden>
+<input type="file" id="file" accept="audio/*,video/mp4,.mp3,.m4a,.mp4,.m4v,.wav,.ogg,.flac" multiple hidden>
 <audio id="audio"></audio>
 
 <script>
@@ -320,6 +332,16 @@ async function upload(rec, fid) {
   return (await res.json()).id;
 }
 
+async function uploadCover(rec, fid) {
+  const meta = { name: (rec.fileName || rec.title) + " — kapak.jpg", parents: [fid],
+                 appProperties: { role: "cover", of: rec.driveId } };
+  const b = "kapak" + Math.random().toString(36).slice(2);
+  const body = new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${rec.cover.type || "image/jpeg"}\r\n\r\n`,
+                         rec.cover, `\r\n--${b}--`]);
+  const res = await api(UPLOAD + "?uploadType=multipart&fields=id",
+    { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${b}` }, body });
+  return (await res.json()).id;
+}
 const trashFile = id => api(`/files/${id}`, { method: "PATCH", headers: jsonHdr, body: JSON.stringify({ trashed: true }) });
 const pendingDel = () => ls.get("plak-sil", []);
 
@@ -352,6 +374,12 @@ async function sync() {
                                  (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""))).json();
       files.push(...(l.files || [])); pageToken = l.nextPageToken;
     } while (pageToken);
+    const covers = new Map();                                    // şarkı kimliği → kapak dosyası
+    files = files.filter(f => {
+      const p = f.appProperties || {};
+      if (p.role === "cover") { covers.set(p.of, f.id); return false; }
+      return true;
+    });
     const ids = new Set(files.map(f => f.id));
 
     // başka cihazdan silinenleri buradan da kaldır
@@ -373,12 +401,26 @@ async function sync() {
     }
     records.sort((a, b) => a.added - b.added); render();
 
+    // Drive'daki kapakları indir (küçük dosyalar)
+    for (const r of records) {
+      const cid = r.driveId && covers.get(r.driveId);
+      if (!cid) continue;
+      r.coverDriveId = cid;
+      if (!r.cover) { try { r.cover = await (await api(`/files/${cid}?alt=media`)).blob(); r.coverTried = true; } catch (e) { if (e.message === "auth") throw e; } }
+      await dbPut(r);
+    }
+    render();
+
     // bu cihazda olup Drive'da olmayanları yükle
     const todo = records.filter(r => !r.driveId && r.blob);
     for (let i = 0; i < todo.length; i++) {
       setDrive(`☁ Drive'a yükleniyor ${i + 1}/${todo.length}…`);
       todo[i].driveId = await upload(todo[i], fid);
       await dbPut(todo[i]);
+    }
+    // kapağı Drive'da olmayanları yükle
+    for (const r of records.filter(r => r.driveId && r.cover && !r.coverDriveId)) {
+      r.coverDriveId = await uploadCover(r, fid); await dbPut(r);
     }
     syncing = false; render(); idleDriveText();
   } catch (e) {
@@ -393,6 +435,113 @@ driveBtn.onclick = async () => {
   try { await getToken(); } catch (e) { setDrive("☁ " + e.message); return; }
   sync();
 };
+
+/* ---------- kapak resimleri ---------- */
+// MP3 (ID3) ve M4A/MP4 dosyalarının içine gömülü albüm kapağını bulur; yoksa videodan bir kare alır.
+const u8 = async (blob, a, b) => new Uint8Array(await blob.slice(a, b).arrayBuffer());
+function findImage(bytes, from, to) {
+  for (let i = from; i < to - 4; i++) {
+    if (bytes[i] === 0xFF && bytes[i + 1] === 0xD8 && bytes[i + 2] === 0xFF) return [i, "image/jpeg"];
+    if (bytes[i] === 0x89 && bytes[i + 1] === 0x50 && bytes[i + 2] === 0x4E && bytes[i + 3] === 0x47) return [i, "image/png"];
+  }
+  return null;
+}
+async function id3Cover(file) {
+  const h = await u8(file, 0, 10);
+  if (h[0] !== 0x49 || h[1] !== 0x44 || h[2] !== 0x33) return null;            // "ID3"
+  const ver = h[3], size = (h[6] << 21) | (h[7] << 14) | (h[8] << 7) | h[9];
+  const b = await u8(file, 10, 10 + size);
+  let i = 0;
+  while (i + 10 < b.length) {
+    let id, fs, hl;
+    if (ver === 2) { id = String.fromCharCode(b[i], b[i + 1], b[i + 2]); fs = (b[i + 3] << 16) | (b[i + 4] << 8) | b[i + 5]; hl = 6; }
+    else {
+      id = String.fromCharCode(b[i], b[i + 1], b[i + 2], b[i + 3]);
+      fs = ver === 4 ? (b[i + 4] << 21) | (b[i + 5] << 14) | (b[i + 6] << 7) | b[i + 7]
+                     : ((b[i + 4] << 24) | (b[i + 5] << 16) | (b[i + 6] << 8) | b[i + 7]) >>> 0;
+      hl = 10;
+    }
+    if (!fs || !/^[A-Z0-9]+$/.test(id)) break;
+    if (id === "APIC" || id === "PIC") {
+      const st = i + hl, en = Math.min(b.length, st + fs), f = findImage(b, st, en);
+      if (f) return new Blob([b.slice(f[0], en)], { type: f[1] });
+    }
+    i += hl + fs;
+  }
+  return null;
+}
+async function mp4Cover(file) {
+  const head = await u8(file, 4, 8);
+  if (String.fromCharCode(...head) !== "ftyp") return null;
+  let off = 0;                                                    // üst düzey kutularda "moov"u bul
+  while (off + 8 <= file.size) {
+    const h = await u8(file, off, off + 16), dv = new DataView(h.buffer);
+    let sz = dv.getUint32(0); const typ = String.fromCharCode(h[4], h[5], h[6], h[7]);
+    if (sz === 1) sz = Number(dv.getBigUint64(8)); else if (sz === 0) sz = file.size - off;
+    if (sz < 8) return null;
+    if (typ === "moov") {
+      const m = await u8(file, off, off + sz), md = new DataView(m.buffer);
+      for (let i = 4; i < m.length - 24; i++) {
+        if (m[i] === 0x63 && m[i + 1] === 0x6F && m[i + 2] === 0x76 && m[i + 3] === 0x72 &&       // "covr"
+            m[i + 8] === 0x64 && m[i + 9] === 0x61 && m[i + 10] === 0x74 && m[i + 11] === 0x61) {  // "data"
+          const dsz = md.getUint32(i + 4), st = i + 20, en = Math.min(m.length, i + 4 + dsz);
+          const f = findImage(m, st, Math.min(en, st + 16));
+          return new Blob([m.slice(f ? f[0] : st, en)], { type: f ? f[1] : "image/jpeg" });
+        }
+      }
+      return null;
+    }
+    off += sz;
+  }
+  return null;
+}
+function videoFrame(file) {
+  return new Promise(res => {
+    const v = document.createElement("video"), url = URL.createObjectURL(file);
+    let done = false;
+    const end = blob => { if (done) return; done = true; URL.revokeObjectURL(url); v.removeAttribute("src"); res(blob); };
+    setTimeout(() => end(null), 8000);
+    v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
+    v.onloadedmetadata = () => { if (!v.videoWidth) return end(null); v.currentTime = Math.min(3, (v.duration || 10) * 0.1); };
+    v.onseeked = () => {
+      const c = document.createElement("canvas"), side = Math.min(v.videoWidth, v.videoHeight);
+      c.width = c.height = Math.min(600, side);
+      c.getContext("2d").drawImage(v, (v.videoWidth - side) / 2, (v.videoHeight - side) / 2, side, side, 0, 0, c.width, c.height);
+      c.toBlob(b => end(b), "image/jpeg", 0.85);
+    };
+    v.onerror = () => end(null);
+  });
+}
+async function shrink(blob) {                                     // kapağı 600 px kareye küçült
+  try {
+    const img = await createImageBitmap(blob), side = Math.min(img.width, img.height);
+    const c = document.createElement("canvas"); c.width = c.height = Math.min(600, side);
+    c.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, "image/jpeg", 0.85));
+  } catch { return null; }
+}
+async function findCover(file) {
+  try {
+    let c = await id3Cover(file) || await mp4Cover(file);
+    if (c) c = await shrink(c);
+    if (!c && (file.type.startsWith("video/") || /\.(mp4|m4v)$/i.test(file.name || ""))) c = await videoFrame(file);
+    return c || null;
+  } catch { return null; }
+}
+const coverUrls = new WeakMap();
+function coverUrl(r) {
+  if (!r.cover) return null;
+  if (!coverUrls.has(r.cover)) coverUrls.set(r.cover, URL.createObjectURL(r.cover));
+  return coverUrls.get(r.cover);
+}
+async function backfillCovers() {                                 // eski plaklarda da kapak ara
+  for (const r of records) {
+    if (r.cover || r.coverTried || !r.blob) continue;
+    r.cover = await findCover(r.blob); r.coverTried = true;
+    await dbPut(r);
+    if (r.cover) render();
+  }
+}
 
 /* ---------- plak kutusu ---------- */
 function colors(hue) {
@@ -413,10 +562,10 @@ function render() {
   records.forEach(r => {
     const c = colors(r.hue);
     const b = document.createElement("div");
-    b.className = "sleeve" + (current && current.id === r.id ? " playing" : "");
+    b.className = "sleeve" + (current && current.id === r.id ? " playing" : "") + (r.cover ? " has-cover" : "");
     b.tabIndex = 0;
     const cloud = !r.blob ? `<div class="cloud" title="Drive'da — çalınca indirilecek">☁</div>` : "";
-    b.innerHTML = `<div class="disc"></div><div class="art" style="background:${c.art}"></div>${cloud}
+    b.innerHTML = `<div class="disc"></div><div class="art" style="background:${r.cover ? `url(${coverUrl(r)})` : c.art}"></div>${cloud}
                    <div class="t">${esc(r.title)}</div><div class="s">${esc(r.type)}</div>
                    <button class="del" title="Plağı sil">×</button>`;
     b.onclick = () => load(r);
@@ -428,8 +577,9 @@ function render() {
       if (current && current.id === r.id) await eject();
       if (r.driveId) {
         let done = false;
-        if (haveToken()) { try { await trashFile(r.driveId); done = true; } catch {} }
-        if (!done) ls.set("plak-sil", [...pendingDel(), r.driveId]);
+        const ids = [r.driveId, r.coverDriveId].filter(Boolean);
+        if (haveToken()) { try { for (const id of ids) await trashFile(id); done = true; } catch {} }
+        if (!done) ls.set("plak-sil", [...pendingDel(), ...ids]);
       }
       await dbDel(r.id);
       records = records.filter(x => x.id !== r.id);
@@ -445,7 +595,7 @@ $("file").onchange = async e => {
       id: Date.now() + "-" + Math.random().toString(36).slice(2),
       title: cleanTitle(f.name), type: extOf(f.name), fileName: f.name,
       hue: Math.floor(Math.random() * 360),
-      blob: f,
+      blob: f, cover: await findCover(f), coverTried: true,
       added: Date.now(),
     };
     try { await dbPut(rec); } catch (err) { alert("Bu şarkı kaydedilemedi: " + f.name); continue; }
@@ -549,6 +699,9 @@ async function load(r) {
   current = r;
   const c = colors(r.hue);
   $("label").style.background = c.color;
+  const pic = coverUrl(r);
+  vinyl.classList.toggle("picture", !!pic);
+  if (pic) vinyl.style.setProperty("--pic", `url(${pic})`); else vinyl.style.removeProperty("--pic");
   $("labelText").textContent = r.title;
   objectUrl = URL.createObjectURL(r.blob);
   audio.src = objectUrl;
@@ -626,7 +779,7 @@ $("eject").onclick = () => { if (!busy) { busy = true; eject().then(() => busy =
 driveBtn.hidden = !CLIENT_ID;
 dbAll().then(all => { records = (all || []).sort((a, b) => a.added - b.added); })
        .catch(() => {})
-       .finally(() => { render(); idleDriveText(); if (haveToken()) sync(); });
+       .finally(async () => { render(); idleDriveText(); await backfillCovers(); if (haveToken()) sync(); });
 </script>
 </body>
 </html>
