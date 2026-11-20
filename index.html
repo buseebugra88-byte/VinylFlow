@@ -78,11 +78,14 @@
   .knob::after { content: ""; position: absolute; left: 47%; top: 10%; width: 6%; height: 30%; background: #e8dcc0; border-radius: 2px; }
   .knob-label { position: absolute; right: 6.4%; bottom: 15%; font-size: clamp(6px, 1.2vw, 8px); letter-spacing: .1em; color: #a99c86; }
   .speed { position: absolute; left: 7%; bottom: 7%; display: flex; gap: 6px; }
-  .speed span {
+  .speed button {
+    font-family: inherit; border: 0; cursor: pointer;
     font-size: clamp(7px, 1.4vw, 10px); color: #cfc2a8; padding: .35em .6em; border-radius: 4px;
     background: linear-gradient(#3b3936, #262422); box-shadow: 0 2px 0 #111, inset 0 1px 0 rgba(255,255,255,.08);
   }
-  .speed span.on { color: #ffb36b; }
+  .speed button.on { color: #ffb36b; box-shadow: 0 1px 0 #111, inset 0 1px 3px rgba(0,0,0,.6); transform: translateY(1px); }
+  .speed { z-index: 6; }
+  .knob { cursor: grab; touch-action: none; z-index: 6; transition: transform .08s; }
   .rest { /* kolun dinlenme yuvası */
     position: absolute; left: 83%; top: 61%; width: 3.2%; height: 5%;
     border-radius: 3px 3px 1px 1px; background: linear-gradient(90deg, #6d6d6d, #cfcfcf, #6d6d6d);
@@ -123,7 +126,25 @@
   }
   .vinyl.picture .label { background: transparent !important; box-shadow: none; }
   .vinyl.picture .label span { display: none; }
-  .vinyl.spin { animation: spin 1.8s linear infinite; }
+  .vinyl.spin { animation: spin var(--rev, 1.8s) linear infinite; }
+  /* ---------- taş plak (78 devir) ---------- */
+  .vinyl.shellac {
+    background:
+      radial-gradient(circle, transparent 0 29%, rgba(255,220,170,.06) 29.5% 30%, transparent 30.5%),
+      radial-gradient(circle closest-side, transparent 0 96%, #2a1d14 96.5%, #0d0907 99%),
+      repeating-radial-gradient(circle, #1a120d 0 2.5px, #2b1f17 2.5px 3.5px, #120c08 3.5px 6px);
+    box-shadow: 0 0 0 2px #0b0705, 0 3px 8px rgba(0,0,0,.7);
+  }
+  .vinyl.shellac::after {
+    background: conic-gradient(from 10deg, transparent 0 8%, rgba(255,210,150,.22) 13%, transparent 19% 55%, rgba(255,210,150,.16) 61%, transparent 68%);
+  }
+  .vinyl.shellac .label {
+    inset: 30%; color: #e9cf8a; font-variant: small-caps; letter-spacing: .04em;
+    background-size: cover !important; background-position: center !important;
+    box-shadow: inset 0 0 0 3px rgba(233,207,138,.55), inset 0 0 0 5px rgba(0,0,0,.4), inset 0 0 18px rgba(0,0,0,.55);
+    filter: sepia(.55) contrast(1.05);
+  }
+  .vinyl.shellac .label span::after { content: "78 devir"; display: block; font-size: .7em; opacity: .8; margin-top: .3em; }
   .label {
     position: absolute; inset: 33%; border-radius: 50%;
     display: flex; align-items: center; justify-content: center; text-align: center;
@@ -160,6 +181,29 @@
   }
 
   .panel { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: -8px; }
+  .lyrics {
+    width: min(560px, 94vw); max-height: 260px; overflow-y: auto; scroll-behavior: smooth;
+    padding: 18px 22px; border-radius: 6px; text-align: center; line-height: 1.75; font-size: 16px;
+    color: #3b2a1a; background: linear-gradient(180deg, #efe2c6, #e2cfa9);
+    box-shadow: 0 10px 24px rgba(0,0,0,.45), inset 0 0 40px rgba(120,80,30,.25);
+    margin-top: -12px; filter: sepia(.1); position: relative;
+  }
+  .lyrics[hidden] { display: none; }
+  .lyrics .ln { opacity: .55; transition: opacity .3s, color .3s; white-space: pre-wrap; }
+  .lyrics.plain .ln { opacity: .9; }
+  .lyrics .ln.on { opacity: 1; color: #7b2a14; font-weight: bold; }
+  .lyrics .empty { opacity: .7; font-style: italic; }
+  .lyrics .bar { display: flex; justify-content: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .lyrics .bar button, .lyrics .bar label {
+    font: inherit; font-size: 13px; cursor: pointer; border: 1px solid rgba(59,42,26,.35);
+    background: rgba(255,255,255,.35); color: #3b2a1a; border-radius: 999px; padding: 5px 12px;
+  }
+  .lyrics textarea {
+    width: 100%; min-height: 180px; font: 15px/1.6 Georgia, serif; color: #2a1d12;
+    background: rgba(255,255,255,.55); border: 1px solid rgba(59,42,26,.3); border-radius: 4px; padding: 10px;
+  }
+  .lyrics .hint { font-size: 12px; opacity: .7; margin-top: 6px; }
+  .btn.on { box-shadow: inset 0 0 0 1px var(--brass); color: var(--brass); }
   .now { font-size: 14px; opacity: .85; text-align: center; min-height: 2.6em; margin-top: -10px; }
   .now b { display: block; font-size: 20px; color: var(--brass); }
   .btn {
@@ -279,8 +323,8 @@
     </svg>
     <div class="head"></div>
   </div>
-  <div class="knob"></div><div class="knob-label">SES</div>
-  <div class="speed"><span class="on">33</span><span>45</span></div>
+  <div class="knob" id="knob" title="Ses: yukarı-aşağı sürükle"></div><div class="knob-label" id="knobLabel">SES</div>
+  <div class="speed" id="speed"><button data-rpm="33">33</button><button data-rpm="45">45</button><button data-rpm="78" title="Taş plak">78</button></div>
   <div class="badge">PLAK ÇALARIM · RETRO</div>
   <div class="led" id="led"></div>
 </div>
@@ -289,15 +333,17 @@
   <button class="btn" id="play" disabled>▶ Çal</button>
   <button class="btn ghost" id="eject" disabled>⏏ Çıkar</button>
   <button class="btn ghost small" id="crackle" title="Plak cızırtısı">♪ Cızırtı: açık</button>
+  <button class="btn ghost small" id="lyricsBtn" title="Şarkı sözleri">📝 Sözler</button>
   </div>
 
 <div class="now" id="now">Plak yok</div>
+<div class="lyrics" id="lyrics" hidden></div>
 
 <div class="shelf-title">Plak kutusu</div>
 <button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
 <div class="crate" id="crate"></div>
 
-<div class="ver">sürüm 20 Kasım 2026 · 18:20</div>
+<div class="ver">sürüm 20 Kasım 2026 · 18:45</div>
 <input type="file" id="coverFile" accept="image/*" hidden>
 <input type="file" id="file" accept="audio/*,video/mp4,.mp3,.m4a,.mp4,.m4v,.wav,.ogg,.flac" multiple hidden>
 <audio id="audio" preload="auto"></audio>
@@ -437,6 +483,15 @@ async function uploadCover(rec, fid) {
     { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${b}` }, body });
   return (await res.json()).id;
 }
+async function uploadSide(rec, fid, role, blob, suffix) {
+  const meta = { name: (rec.fileName || rec.title) + suffix, parents: [fid], appProperties: { role, of: rec.driveId } };
+  const b = "parca" + Math.random().toString(36).slice(2);
+  const body = new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${blob.type}\r\n\r\n`,
+                         blob, `\r\n--${b}--`]);
+  const res = await api(UPLOAD + "?uploadType=multipart&fields=id",
+    { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${b}` }, body });
+  return (await res.json()).id;
+}
 const trashFile = id => api(`/files/${id}`, { method: "PATCH", headers: jsonHdr, body: JSON.stringify({ trashed: true }) });
 const pendingDel = () => ls.get("plak-sil", []);
 
@@ -469,10 +524,12 @@ async function sync() {
                                  (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""))).json();
       files.push(...(l.files || [])); pageToken = l.nextPageToken;
     } while (pageToken);
+    const lyricFiles = new Map();
     const covers = new Map();                                    // şarkı kimliği → kapak dosyası
     files = files.filter(f => {
       const p = f.appProperties || {};
       if (p.role === "cover") { covers.set(p.of, f.id); return false; }
+      if (p.role === "lyrics") { lyricFiles.set(p.of, f.id); return false; }
       return true;
     });
     const ids = new Set(files.map(f => f.id));
@@ -507,6 +564,15 @@ async function sync() {
     }
     render();
 
+    // Drive'daki sözleri indir
+    for (const r of records) {
+      const lid = r.driveId && lyricFiles.get(r.driveId);
+      if (!lid || r.lyricsDirty || lid === r.lyricsDriveId) continue;
+      try { r.lyrics = await (await api(`/files/${lid}?alt=media`)).text(); r.lyricsDriveId = lid; await dbPut(r); }
+      catch (e) { if (e.message === "auth") throw e; }
+    }
+    if (current) showLyrics();
+
     // bu cihazda olup Drive'da olmayanları yükle
     const todo = records.filter(r => !r.driveId && r.blob);
     for (let i = 0; i < todo.length; i++) {
@@ -518,6 +584,12 @@ async function sync() {
     for (const r of records.filter(r => r.driveId && r.cover && (!r.coverDriveId || r.coverDirty))) {
       if (r.coverDirty && r.coverDriveId) { try { await trashFile(r.coverDriveId); } catch (e) { if (e.message === "auth") throw e; } }
       r.coverDriveId = await uploadCover(r, fid); r.coverDirty = false; await dbPut(r);
+    }
+    // sözleri Drive'a yükle (yeni ya da değişen)
+    for (const r of records.filter(r => r.driveId && (r.lyricsDirty || (r.lyrics && !r.lyricsDriveId)))) {
+      if (r.lyricsDriveId) { try { await trashFile(r.lyricsDriveId); } catch (e) { if (e.message === "auth") throw e; } r.lyricsDriveId = null; }
+      if (r.lyrics) r.lyricsDriveId = await uploadSide(r, fid, "lyrics", new Blob([r.lyrics], { type: "text/plain;charset=utf-8" }), " — sözler.txt");
+      r.lyricsDirty = false; await dbPut(r);
     }
     syncing = false; render(); idleDriveText();
   } catch (e) {
@@ -643,6 +715,74 @@ async function findCover(file) {
     return c || null;
   } catch { return null; }
 }
+/* ---------- şarkı sözü bulma (MP3: USLT, MP4/M4A: ©lyr) ---------- */
+function decodeText(bytes, enc) {
+  try {
+    if (enc === 1 || enc === 2) {
+      let le = enc === 1, st = 0;
+      if (enc === 1 && bytes[0] === 0xFE && bytes[1] === 0xFF) { le = false; st = 2; }
+      else if (enc === 1 && bytes[0] === 0xFF && bytes[1] === 0xFE) { le = true; st = 2; }
+      return new TextDecoder(le ? "utf-16le" : "utf-16be").decode(bytes.slice(st));
+    }
+    return new TextDecoder(enc === 3 ? "utf-8" : "latin1").decode(bytes);
+  } catch { return ""; }
+}
+async function id3Lyrics(file) {
+  const h = await u8(file, 0, 10);
+  if (h[0] !== 0x49 || h[1] !== 0x44 || h[2] !== 0x33) return null;
+  const ver = h[3], size = (h[6] << 21) | (h[7] << 14) | (h[8] << 7) | h[9];
+  const b = await u8(file, 10, 10 + size);
+  let i = 0;
+  while (i + 10 < b.length) {
+    let id, fs, hl;
+    if (ver === 2) { id = String.fromCharCode(b[i], b[i + 1], b[i + 2]); fs = (b[i + 3] << 16) | (b[i + 4] << 8) | b[i + 5]; hl = 6; }
+    else {
+      id = String.fromCharCode(b[i], b[i + 1], b[i + 2], b[i + 3]);
+      fs = ver === 4 ? (b[i + 4] << 21) | (b[i + 5] << 14) | (b[i + 6] << 7) | b[i + 7]
+                     : ((b[i + 4] << 24) | (b[i + 5] << 16) | (b[i + 6] << 8) | b[i + 7]) >>> 0;
+      hl = 10;
+    }
+    if (!fs || !/^[A-Z0-9]+$/.test(id)) break;
+    if (id === "USLT" || id === "ULT") {
+      const d = b.slice(i + hl, i + hl + fs), enc = d[0];
+      let k = 4;
+      if (enc === 1 || enc === 2) { while (k + 1 < d.length && !(d[k] === 0 && d[k + 1] === 0)) k += 2; k += 2; }
+      else { while (k < d.length && d[k] !== 0) k++; k += 1; }
+      const t = decodeText(d.slice(k), enc).replace(/\u0000/g, "").trim();
+      if (t) return t;
+    }
+    i += hl + fs;
+  }
+  return null;
+}
+async function mp4Lyrics(file) {
+  const head = await u8(file, 4, 8);
+  if (String.fromCharCode(...head) !== "ftyp") return null;
+  let off = 0;
+  while (off + 8 <= file.size) {
+    const h = await u8(file, off, off + 16), dv = new DataView(h.buffer);
+    let sz = dv.getUint32(0); const typ = String.fromCharCode(h[4], h[5], h[6], h[7]);
+    if (sz === 1) sz = Number(dv.getBigUint64(8)); else if (sz === 0) sz = file.size - off;
+    if (sz < 8) return null;
+    if (typ === "moov") {
+      const m = await u8(file, off, off + sz), md = new DataView(m.buffer);
+      for (let i = 4; i < m.length - 24; i++) {
+        if (m[i] === 0xA9 && m[i + 1] === 0x6C && m[i + 2] === 0x79 && m[i + 3] === 0x72 &&
+            m[i + 8] === 0x64 && m[i + 9] === 0x61 && m[i + 10] === 0x74 && m[i + 11] === 0x61) {
+          const dsz = md.getUint32(i + 4), t = new TextDecoder("utf-8").decode(m.slice(i + 20, Math.min(m.length, i + 4 + dsz))).trim();
+          if (t) return t;
+        }
+      }
+      return null;
+    }
+    off += sz;
+  }
+  return null;
+}
+async function findLyrics(file) {
+  try { return (await id3Lyrics(file)) || (await mp4Lyrics(file)) || ""; } catch { return ""; }
+}
+
 const coverUrls = new WeakMap();
 function coverUrl(r) {
   if (!r.cover) return null;
@@ -658,7 +798,14 @@ async function backfillCovers() {                                 // eski plakla
     if (c) { r.cover = c; if (r.driveId) r.coverDirty = true; }
     await dbPut(r); render();
   }
-  if (haveToken() && records.some(r => r.coverDirty)) sync();
+  for (const r of records) {                                      // sözleri de bir kez ara
+    if (!r.blob || r.lyrics !== undefined) continue;
+    r.lyrics = await findLyrics(r.blob);
+    if (r.lyrics && r.driveId) r.lyricsDirty = true;
+    await dbPut(r);
+  }
+  if (current) showLyrics();
+  if (haveToken() && records.some(r => r.coverDirty || r.lyricsDirty)) sync();
 }
 
 /* ---------- plak kutusu ---------- */
@@ -701,7 +848,7 @@ function render() {
       if (current && current.id === r.id) await eject();
       if (r.driveId) {
         let done = false;
-        const ids = [r.driveId, r.coverDriveId].filter(Boolean);
+        const ids = [r.driveId, r.coverDriveId, r.lyricsDriveId].filter(Boolean);
         if (haveToken()) { try { for (const id of ids) await trashFile(id); done = true; } catch {} }
         if (!done) ls.set("plak-sil", [...pendingDel(), ...ids]);
       }
@@ -722,7 +869,7 @@ $("coverFile").onchange = async e => {
   r.cover = c; r.coverManual = true; r.coverTried = true; r.coverVer = COVER_VER;
   if (r.driveId) r.coverDirty = true;
   await dbPut(r); render();
-  if (current && current.id === r.id) { vinyl.classList.add("picture"); vinyl.style.setProperty("--pic", `url(${coverUrl(r)})`); }
+  if (current && current.id === r.id) applyLook();
   if (haveToken()) sync(); else idleDriveText();
 };
 
@@ -732,7 +879,7 @@ $("file").onchange = async e => {
       id: Date.now() + "-" + Math.random().toString(36).slice(2),
       title: cleanTitle(f.name), type: extOf(f.name), fileName: f.name,
       hue: Math.floor(Math.random() * 360),
-      blob: f, cover: await findCover(f), coverTried: true, coverVer: COVER_VER,
+      blob: f, cover: await findCover(f), coverTried: true, coverVer: COVER_VER, lyrics: await findLyrics(f),
       added: Date.now(),
     };
     try { await dbPut(rec); } catch (err) { alert("Bu şarkı kaydedilemedi: " + f.name); continue; }
@@ -753,7 +900,7 @@ function placeNeedle() {
   const k = d && isFinite(d) ? Math.min(1, Math.max(0, t / d)) : 0;
   arm.style.setProperty("--arm", (ARM_START + (ARM_END - ARM_START) * k).toFixed(2) + "deg");
 }
-audio.ontimeupdate = placeNeedle;
+audio.ontimeupdate = () => { placeNeedle(); followLyrics(); };
 audio.onloadedmetadata = placeNeedle;
 
 /* ---------- çok hafif plak cızırtısı (dosya yok, tarayıcı üretir) ---------- */
@@ -783,12 +930,141 @@ function setCrackle(on) {
   if (!crackleGain) return;
   const t = actx.currentTime;
   crackleGain.gain.cancelScheduledValues(t);
-  crackleGain.gain.setTargetAtTime(on && crackleOn ? 0.10 : 0, t, 0.25);
+  crackleGain.gain.setTargetAtTime(on && crackleOn ? (rpm === 78 ? 0.22 : 0.10) : 0, t, 0.25);
 }
 $("crackle").onclick = () => {
   crackleOn = !crackleOn; ls.set("plak-cizirti", crackleOn); crackleText();
   initCrackle(); if (actx && actx.state === "suspended") actx.resume(); setCrackle(playing);
 };
+
+/* ---------- hız düğmeleri ve taş plak (78) ---------- */
+let rpm = ls.get("plak-hiz", 33), graph = null, volume = ls.get("plak-ses", 0.9);
+const REV = { 33: "1.8s", 45: "1.33s", 78: "0.77s" };
+function ensureGraph() {
+  if (graph) return graph;
+  initCrackle(); if (!actx) return null;
+  try {
+    const hp = actx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 10;
+    const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 22000;
+    const mid = actx.createBiquadFilter(); mid.type = "peaking"; mid.frequency.value = 1400; mid.Q.value = 0.8; mid.gain.value = 0;
+    const vol = actx.createGain(); vol.gain.value = volume;
+    for (const el of [audioEl, videoEl]) actx.createMediaElementSource(el).connect(hp);
+    hp.connect(mid).connect(lp).connect(vol).connect(actx.destination);
+    graph = { hp, lp, mid, vol };
+  } catch { graph = null; }
+  return graph;
+}
+function applySound() {
+  const old = rpm === 78;
+  if (graph) {
+    const t = actx.currentTime;
+    graph.hp.frequency.setTargetAtTime(old ? 280 : 10, t, 0.1);
+    graph.lp.frequency.setTargetAtTime(old ? 3200 : 22000, t, 0.1);
+    graph.mid.gain.setTargetAtTime(old ? 5 : 0, t, 0.1);
+    graph.vol.gain.setTargetAtTime(volume, t, 0.05);
+    audioEl.volume = videoEl.volume = 1;
+  } else { audioEl.volume = videoEl.volume = volume; }
+  setCrackle(playing);
+}
+function applyLook() {
+  const shellac = rpm === 78, r = current;
+  vinyl.style.setProperty("--rev", REV[rpm] || "1.8s");
+  vinyl.classList.toggle("shellac", shellac);
+  document.querySelectorAll("#speed button").forEach(b => b.classList.toggle("on", +b.dataset.rpm === rpm));
+  if (!r) return;
+  const pic = coverUrl(r), c = colors(r.hue);
+  vinyl.classList.toggle("picture", !!pic && !shellac);
+  if (pic) vinyl.style.setProperty("--pic", `url(${pic})`); else vinyl.style.removeProperty("--pic");
+  $("label").style.background = shellac ? (pic ? `url(${pic})` : "#5b1f19") : c.color;
+}
+document.querySelectorAll("#speed button").forEach(b => b.onclick = () => {
+  rpm = +b.dataset.rpm; ls.set("plak-hiz", rpm);
+  if (rpm === 78) { ensureGraph(); if (actx && actx.state === "suspended") actx.resume(); }
+  applyLook(); applySound();
+});
+
+/* ---------- SES düğmesi ---------- */
+const knob = $("knob");
+function showVolume(flash) {
+  knob.style.transform = `rotate(${-135 + volume * 270}deg)`;
+  if (flash) { $("knobLabel").textContent = "SES %" + Math.round(volume * 100); clearTimeout(showVolume.t); showVolume.t = setTimeout(() => $("knobLabel").textContent = "SES", 1200); }
+}
+function setVolume(v, flash) { volume = Math.max(0, Math.min(1, v)); ls.set("plak-ses", volume); applySound(); showVolume(flash); }
+let knobDrag = null;
+knob.addEventListener("pointerdown", e => { e.preventDefault(); knob.setPointerCapture(e.pointerId); knobDrag = { y: e.clientY, v: volume }; });
+knob.addEventListener("pointermove", e => { if (knobDrag) setVolume(knobDrag.v + (knobDrag.y - e.clientY) / 120, true); });
+knob.addEventListener("pointerup", () => knobDrag = null);
+knob.addEventListener("pointercancel", () => knobDrag = null);
+knob.addEventListener("wheel", e => { e.preventDefault(); setVolume(volume - e.deltaY / 800, true); }, { passive: false });
+knob.addEventListener("dblclick", () => setVolume(volume > 0 ? 0 : 0.9, true));
+
+/* ---------- şarkı sözleri ---------- */
+// Düz metin ya da zamanlı (LRC) olabilir: "[01:23.45] satır". Zamanlıysa çalan satır vurgulanır.
+let lyricsOpen = ls.get("plak-sozler", false), lyricLines = [], lyricIdx = -1, editing = false;
+const lyricsBox = $("lyrics");
+function parseLyrics(txt) {
+  const out = []; let timed = false;
+  for (const raw of (txt || "").replace(/\r/g, "").split("\n")) {
+    const tags = [...raw.matchAll(/\[(\d{1,2}):(\d{1,2}(?:[.,]\d{1,3})?)\]/g)];
+    const text = raw.replace(/\[[^\]]*\]/g, "").trim();
+    if (tags.length) { timed = true; for (const m of tags) out.push({ t: +m[1] * 60 + parseFloat(m[2].replace(",", ".")), text }); }
+    else if (!/^\[[a-z]+:.*\]$/i.test(raw.trim())) out.push({ t: null, text: raw.trim() });
+  }
+  if (timed) return { timed: true, lines: out.filter(l => l.t !== null).sort((a, b) => a.t - b.t) };
+  return { timed: false, lines: out };
+}
+function showLyrics() {
+  if (editing) return;
+  lyricsBox.hidden = !lyricsOpen;
+  $("lyricsBtn").classList.toggle("on", lyricsOpen);
+  if (!lyricsOpen) return;
+  if (!current) { lyricsBox.innerHTML = `<div class="empty">Bir plak seçince sözleri burada görünecek.</div>`; return; }
+  const p = parseLyrics(current.lyrics);
+  lyricLines = p.timed ? p.lines : []; lyricIdx = -1;
+  lyricsBox.classList.toggle("plain", !p.timed);
+  const body = p.lines.length && (current.lyrics || "").trim()
+    ? p.lines.map((l, i) => `<div class="ln" data-i="${i}">${esc(l.text) || "&nbsp;"}</div>`).join("")
+    : `<div class="empty">Bu şarkının sözleri yok.<br>Eklemek için Düzenle'ye bas.</div>`;
+  lyricsBox.innerHTML = body + `<div class="bar"><button id="lyrEdit">✎ Düzenle</button></div>`;
+  $("lyrEdit").onclick = editLyrics;
+  lyricsBox.scrollTop = 0;
+  followLyrics();
+}
+function followLyrics() {
+  if (!lyricsOpen || editing || !lyricLines.length) return;
+  const t = audio.currentTime + 0.25;
+  let i = -1; for (let k = 0; k < lyricLines.length; k++) { if (lyricLines[k].t <= t) i = k; else break; }
+  if (i === lyricIdx) return;
+  lyricIdx = i;
+  lyricsBox.querySelectorAll(".ln.on").forEach(e => e.classList.remove("on"));
+  const el = lyricsBox.querySelector(`.ln[data-i="${i}"]`);
+  if (el) { el.classList.add("on"); lyricsBox.scrollTop = el.offsetTop - lyricsBox.clientHeight / 2 + el.clientHeight / 2; }
+}
+function editLyrics() {
+  if (!current) return;
+  editing = true; const r = current;
+  lyricsBox.classList.add("plain");
+  lyricsBox.innerHTML = `<textarea id="lyrText" placeholder="Şarkı sözlerini buraya yaz ya da yapıştır…"></textarea>
+    <div class="hint">Şarkı çalarken <b>⏱ Zamanla</b>'ya her bastığında sıradaki satıra o anın zamanı eklenir; böylece sözler şarkıyla birlikte akar.<br>Zamanları elle de yazabilirsin: <b>[00:12.5]</b> satır</div>
+    <div class="bar"><button id="lyrSave">Kaydet</button><button id="lyrTime">⏱ Zamanla</button><label>📄 Dosyadan (.txt / .lrc)<input type="file" id="lyrFile" accept=".txt,.lrc,text/plain" hidden></label><button id="lyrCancel">Vazgeç</button></div>`;
+  const ta = $("lyrText"); ta.value = r.lyrics || ""; ta.focus();
+  $("lyrFile").onchange = async e => { const f = e.target.files[0]; if (f) ta.value = await f.text(); };
+  let next = 0;
+  $("lyrTime").onclick = () => {
+    const lines = ta.value.split("\n"); const t = audio.currentTime || 0;
+    while (next < lines.length && (!lines[next].trim() || /^\[\d/.test(lines[next]))) next++;
+    if (next >= lines.length) return;
+    const mm = String(Math.floor(t / 60)).padStart(2, "0"), ss = (t % 60).toFixed(2).padStart(5, "0");
+    lines[next] = `[${mm}:${ss}] ` + lines[next]; ta.value = lines.join("\n"); next++;
+  };
+  $("lyrCancel").onclick = () => { editing = false; showLyrics(); };
+  $("lyrSave").onclick = async () => {
+    r.lyrics = ta.value.trim(); if (r.driveId) r.lyricsDirty = true;
+    await dbPut(r); editing = false; showLyrics();
+    if (haveToken()) sync(); else idleDriveText();
+  };
+}
+$("lyricsBtn").onclick = () => { lyricsOpen = !lyricsOpen; ls.set("plak-sozler", lyricsOpen); editing = false; showLyrics(); };
 
 function setPlaying(on) {
   playing = on;
@@ -810,6 +1086,7 @@ async function eject() {
   if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
   audio.removeAttribute("src"); audio.load();
   $("now").textContent = "Plak yok";
+  showLyrics();
   $("play").disabled = $("eject").disabled = true;
   render();
 }
@@ -834,12 +1111,9 @@ async function load(r) {
   busy = true;
   if (current) await eject();
   current = r;
-  const c = colors(r.hue);
-  $("label").style.background = c.color;
-  const pic = coverUrl(r);
-  vinyl.classList.toggle("picture", !!pic);
-  if (pic) vinyl.style.setProperty("--pic", `url(${pic})`); else vinyl.style.removeProperty("--pic");
+  applyLook();
   $("labelText").textContent = r.title;
+  showLyrics();
   const mb = mediaBlob(r);
   audio = isVideo(r) ? videoEl : audioEl;
   objectUrl = URL.createObjectURL(mb);
@@ -856,7 +1130,7 @@ async function load(r) {
 $("play").onclick = async () => {
   if (!current || busy) return;
   if (playing) { audio.pause(); setPlaying(false); return; }
-  initCrackle(); if (actx && actx.state === "suspended") actx.resume();
+  initCrackle(); if (rpm === 78) ensureGraph(); if (actx && actx.state === "suspended") actx.resume();
   busy = true;
   // Safari, dokunuştan ~1 sn sonra başlayan sesi engelliyor: sesi dokunur dokunmaz sessizce başlatıp "kilidi açıyoruz".
   const at = audio.currentTime;
@@ -934,6 +1208,7 @@ arm.addEventListener("pointercancel", dropNeedle);
 
 $("eject").onclick = () => { if (!busy) { busy = true; eject().then(() => busy = false); } };
 
+applyLook(); applySound(); showVolume(false); showLyrics();
 // iki oynatıcı da aynı olayları dinlesin
 for (const k of ["ontimeupdate", "onloadedmetadata", "onended", "onpause"]) videoEl[k] = audioEl[k];
 
