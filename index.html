@@ -214,7 +214,13 @@
     border: 0; background: rgba(0,0,0,.45); color: #fff; font-size: 14px; line-height: 22px; cursor: pointer;
     opacity: 0; transition: opacity .2s;
   }
-  .sleeve:hover .del, .sleeve:focus-within .del { opacity: 1; }
+  .sleeve .pic {
+    position: absolute; z-index: 3; top: 6px; right: 32px; width: 22px; height: 22px; border-radius: 50%;
+    border: 0; background: rgba(0,0,0,.45); color: #fff; font-size: 11px; line-height: 22px; cursor: pointer;
+    opacity: 0; transition: opacity .2s;
+  }
+  .sleeve:hover .del, .sleeve:focus-within .del, .sleeve:hover .pic, .sleeve:focus-within .pic { opacity: 1; }
+  @media (hover: none) { .sleeve .del, .sleeve .pic { opacity: .85; } }
   .sleeve.add {
     background: transparent; box-shadow: none; border: 2px dashed rgba(243,231,211,.35);
     color: var(--cream); align-items: center; justify-content: center; text-align: center; gap: 6px;
@@ -291,7 +297,8 @@
 <button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
 <div class="crate" id="crate"></div>
 
-<div class="ver">sürüm 20 Kasım 2026 · 17:00</div>
+<div class="ver">sürüm 20 Kasım 2026 · 17:10</div>
+<input type="file" id="coverFile" accept="image/*" hidden>
 <input type="file" id="file" accept="audio/*,video/mp4,.mp3,.m4a,.mp4,.m4v,.wav,.ogg,.flac" multiple hidden>
 <audio id="audio"></audio>
 
@@ -481,9 +488,10 @@ async function sync() {
     // Drive'daki kapakları indir (küçük dosyalar)
     for (const r of records) {
       const cid = r.driveId && covers.get(r.driveId);
-      if (!cid) continue;
+      if (!cid || r.coverDirty) continue;
+      const changed = cid !== r.coverDriveId;
       r.coverDriveId = cid;
-      if (!r.cover) { try { r.cover = await (await api(`/files/${cid}?alt=media`)).blob(); r.coverTried = true; } catch (e) { if (e.message === "auth") throw e; } }
+      if (!r.cover || changed) { try { r.cover = await (await api(`/files/${cid}?alt=media`)).blob(); r.coverTried = true; } catch (e) { if (e.message === "auth") throw e; } }
       await dbPut(r);
     }
     render();
@@ -495,9 +503,10 @@ async function sync() {
       todo[i].driveId = await upload(todo[i], fid);
       await dbPut(todo[i]);
     }
-    // kapağı Drive'da olmayanları yükle
-    for (const r of records.filter(r => r.driveId && r.cover && !r.coverDriveId)) {
-      r.coverDriveId = await uploadCover(r, fid); await dbPut(r);
+    // kapağı Drive'da olmayanları ya da değişenleri yükle
+    for (const r of records.filter(r => r.driveId && r.cover && (!r.coverDriveId || r.coverDirty))) {
+      if (r.coverDirty && r.coverDriveId) { try { await trashFile(r.coverDriveId); } catch (e) { if (e.message === "auth") throw e; } }
+      r.coverDriveId = await uploadCover(r, fid); r.coverDirty = false; await dbPut(r);
     }
     syncing = false; render(); idleDriveText();
   } catch (e) {
@@ -559,11 +568,10 @@ async function mp4Cover(file) {
     if (typ === "moov") {
       const m = await u8(file, off, off + sz), md = new DataView(m.buffer);
       for (let i = 4; i < m.length - 24; i++) {
-        if (m[i] === 0x63 && m[i + 1] === 0x6F && m[i + 2] === 0x76 && m[i + 3] === 0x72 &&       // "covr"
-            m[i + 8] === 0x64 && m[i + 9] === 0x61 && m[i + 10] === 0x74 && m[i + 11] === 0x61) {  // "data"
-          const dsz = md.getUint32(i + 4), st = i + 20, en = Math.min(m.length, i + 4 + dsz);
-          const f = findImage(m, st, Math.min(en, st + 16));
-          return new Blob([m.slice(f ? f[0] : st, en)], { type: f ? f[1] : "image/jpeg" });
+        if (m[i] === 0x63 && m[i + 1] === 0x6F && m[i + 2] === 0x76 && m[i + 3] === 0x72) {      // "covr"
+          const csz = md.getUint32(i - 4), en = Math.min(m.length, i - 4 + (csz > 8 ? csz : m.length));
+          const f = findImage(m, i + 4, Math.min(en, i + 64));                                     // resmin başını ara
+          if (f) return new Blob([m.slice(f[0], en)], { type: f[1] });
         }
       }
       return null;
@@ -573,20 +581,39 @@ async function mp4Cover(file) {
   return null;
 }
 function videoFrame(file) {
+  // Birkaç farklı anı dener; siyah ya da çok koyu kareleri atlar, en canlısını seçer.
   return new Promise(res => {
     const v = document.createElement("video"), url = URL.createObjectURL(file);
-    let done = false;
-    const end = blob => { if (done) return; done = true; URL.revokeObjectURL(url); v.removeAttribute("src"); res(blob); };
-    setTimeout(() => end(null), 8000);
+    let done = false, times = [], best = null, bestScore = -1;
+    const finish = () => {
+      if (done) return; done = true; URL.revokeObjectURL(url); v.removeAttribute("src");
+      if (!best) return res(null);
+      best.toBlob(b => res(b), "image/jpeg", 0.85);
+    };
+    setTimeout(finish, 12000);
     v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
-    v.onloadedmetadata = () => { if (!v.videoWidth) return end(null); v.currentTime = Math.min(3, (v.duration || 10) * 0.1); };
+    v.onloadedmetadata = () => {
+      if (!v.videoWidth) return finish();
+      const d = isFinite(v.duration) && v.duration > 0 ? v.duration : 10;
+      times = [0.5, 0.15 * d, 0.3 * d, 0.5 * d, 3, 0.7 * d, 1].map(t => Math.min(Math.max(0, t), Math.max(0, d - 0.1)));
+      v.currentTime = times.shift();
+    };
     v.onseeked = () => {
       const c = document.createElement("canvas"), side = Math.min(v.videoWidth, v.videoHeight);
       c.width = c.height = Math.min(600, side);
-      c.getContext("2d").drawImage(v, (v.videoWidth - side) / 2, (v.videoHeight - side) / 2, side, side, 0, 0, c.width, c.height);
-      c.toBlob(b => end(b), "image/jpeg", 0.85);
+      const g = c.getContext("2d");
+      g.drawImage(v, (v.videoWidth - side) / 2, (v.videoHeight - side) / 2, side, side, 0, 0, c.width, c.height);
+      // parlaklık ve çeşitlilik ölç
+      const t = document.createElement("canvas"); t.width = t.height = 24;
+      const tg = t.getContext("2d"); tg.drawImage(c, 0, 0, 24, 24);
+      const px = tg.getImageData(0, 0, 24, 24).data; let sum = 0, sq = 0, n = 0;
+      for (let i = 0; i < px.length; i += 4) { const y = 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]; sum += y; sq += y * y; n++; }
+      const mean = sum / n, sd = Math.sqrt(Math.max(0, sq / n - mean * mean)), score = Math.min(mean, 140) + sd * 2;
+      if (score > bestScore) { bestScore = score; best = c; }
+      if ((mean > 35 && sd > 18) || !times.length) return finish();   // yeterince canlı kare bulundu
+      v.currentTime = times.shift();
     };
-    v.onerror = () => end(null);
+    v.onerror = () => finish();
   });
 }
 async function shrink(blob) {                                     // kapağı 600 px kareye küçült
@@ -611,13 +638,16 @@ function coverUrl(r) {
   if (!coverUrls.has(r.cover)) coverUrls.set(r.cover, URL.createObjectURL(r.cover));
   return coverUrls.get(r.cover);
 }
-async function backfillCovers() {                                 // eski plaklarda da kapak ara
+const COVER_VER = 2;
+async function backfillCovers() {                                 // eski plaklarda kapakları (yeniden) ara
   for (const r of records) {
-    if (r.cover || r.coverTried || !r.blob) continue;
-    r.cover = await findCover(r.blob); r.coverTried = true;
-    await dbPut(r);
-    if (r.cover) render();
+    if (!r.blob || r.coverManual || (r.coverVer || 0) >= COVER_VER) continue;
+    const c = await findCover(r.blob);
+    r.coverVer = COVER_VER; r.coverTried = true;
+    if (c) { r.cover = c; if (r.driveId) r.coverDirty = true; }
+    await dbPut(r); render();
   }
+  if (haveToken() && records.some(r => r.coverDirty)) sync();
 }
 
 /* ---------- plak kutusu ---------- */
@@ -648,9 +678,11 @@ function render() {
     const cloud = !r.blob ? `<div class="cloud" title="Drive'da — çalınca indirilecek">☁</div>` : "";
     b.innerHTML = `<div class="disc"></div><div class="art" style="background:${r.cover ? `url(${coverUrl(r)})` : c.art}"></div>${cloud}
                    <div class="t">${esc(r.title)}</div><div class="s">${esc(r.type)}</div>
+                   <button class="pic" title="Kapağı değiştir">🖼</button>
                    <button class="del" title="Plağı sil">×</button>`;
     b.onclick = () => load(r);
     b.onkeydown = e => { if (e.key === "Enter") load(r); };
+    b.querySelector(".pic").onclick = e => { e.stopPropagation(); coverTarget = r; $("coverFile").click(); };
     b.querySelector(".del").onclick = async e => {
       e.stopPropagation();
       const extra = r.driveId ? "\n(Drive'daki kopyası da çöp kutusuna taşınır.)" : "";
@@ -670,13 +702,26 @@ function render() {
   });
 }
 
+let coverTarget = null;
+$("coverFile").onchange = async e => {
+  const f = e.target.files[0], r = coverTarget; e.target.value = ""; coverTarget = null;
+  if (!f || !r) return;
+  const c = await shrink(f);
+  if (!c) { alert("Bu resim açılamadı."); return; }
+  r.cover = c; r.coverManual = true; r.coverTried = true; r.coverVer = COVER_VER;
+  if (r.driveId) r.coverDirty = true;
+  await dbPut(r); render();
+  if (current && current.id === r.id) { vinyl.classList.add("picture"); vinyl.style.setProperty("--pic", `url(${coverUrl(r)})`); }
+  if (haveToken()) sync(); else idleDriveText();
+};
+
 $("file").onchange = async e => {
   for (const f of e.target.files) {
     const rec = {
       id: Date.now() + "-" + Math.random().toString(36).slice(2),
       title: cleanTitle(f.name), type: extOf(f.name), fileName: f.name,
       hue: Math.floor(Math.random() * 360),
-      blob: f, cover: await findCover(f), coverTried: true,
+      blob: f, cover: await findCover(f), coverTried: true, coverVer: COVER_VER,
       added: Date.now(),
     };
     try { await dbPut(rec); } catch (err) { alert("Bu şarkı kaydedilemedi: " + f.name); continue; }
