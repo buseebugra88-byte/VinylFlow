@@ -138,11 +138,23 @@
   .sleeve .art { position: absolute; inset: 0; z-index: 1; }
   .sleeve .t { position: relative; z-index: 2; font-size: 15px; line-height: 1.15; }
   .sleeve .s { position: relative; z-index: 2; font-size: 11px; opacity: .8; }
+  .sleeve .del {
+    position: absolute; z-index: 3; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%;
+    border: 0; background: rgba(0,0,0,.45); color: #fff; font-size: 14px; line-height: 22px; cursor: pointer;
+    opacity: 0; transition: opacity .2s;
+  }
+  .sleeve:hover .del, .sleeve:focus-within .del { opacity: 1; }
+  .sleeve.add {
+    background: transparent; box-shadow: none; border: 2px dashed rgba(243,231,211,.35);
+    color: var(--cream); align-items: center; justify-content: center; text-align: center; gap: 6px;
+  }
+  .sleeve.add:hover { border-color: var(--brass); color: var(--brass); }
+  .sleeve.add .plus { font-size: 34px; line-height: 1; }
 </style>
 </head>
 <body>
 
-<h1>Plak Çalarım<small>Bir plak seç, iğneyi indir, uygulama açılsın</small></h1>
+<h1>Plak Çalarım<small>Bir plak seç, iğneyi indir, müzik çalsın</small></h1>
 
 <div class="deck">
   <div class="plate">
@@ -150,7 +162,7 @@
   </div>
   <div class="arm" id="arm"><div class="rod"></div><div class="head"></div><div class="pivot"></div></div>
   <div class="panel">
-    <button class="btn" id="play" disabled>▶ Çal (aç)</button>
+    <button class="btn" id="play" disabled>▶ Çal</button>
     <button class="btn ghost" id="eject" disabled>⏏ Çıkar</button>
   </div>
   <div class="led" id="led"></div>
@@ -161,72 +173,146 @@
 <div class="shelf-title">Plak kutusu</div>
 <div class="crate" id="crate"></div>
 
+<input type="file" id="file" accept="audio/*" multiple hidden>
+<audio id="audio"></audio>
+
 <script>
-const BASE = "https://buseebugra88-byte.github.io/";
-const records = [
-  { title: "Dijital Kütüphanem", side: "A tarafı · kitaplar", url: BASE + "dijital-kutuphane/",            color: "#8c2f39", art: "linear-gradient(135deg,#8c2f39,#4a1520)" },
-  { title: "Yazar Köşem",        side: "roman & karakterler", url: BASE + "dijital-kutuphane/yazar/",      color: "#2f5d62", art: "linear-gradient(135deg,#2f5d62,#163235)" },
-  { title: "Çalışma Masam",      side: "günlük çalışma",      url: BASE + "dijital-kutuphane/masa/",       color: "#b5793a", art: "linear-gradient(135deg,#c48a45,#6e4620)" },
-  { title: "Mektuplar",          side: "mektup arşivi",       url: BASE + "dijital-kutuphane/mektup.html", color: "#7a5c99", art: "linear-gradient(135deg,#7a5c99,#3c2b52)" },
-  { title: "Tez Asistanı",       side: "tez yazımı",          url: BASE + "spss-tez-rehberi/tez-asistani.html", color: "#3d6b45", art: "linear-gradient(135deg,#4b7f54,#213d26)" },
-  { title: "SPSS Tez Rehberi",   side: "istatistik",          url: BASE + "spss-tez-rehberi/SPSS-Tez-Rehberi-Claudesuz.html", color: "#2c4a7a", art: "linear-gradient(135deg,#3a5f99,#182a47)" },
-  { title: "Fizyo Seans",        side: "seans takibi",        url: BASE + "fizyo-seans/",                  color: "#c2553a", art: "linear-gradient(135deg,#d0664a,#6b2a1a)" },
-];
-
 const $ = id => document.getElementById(id);
-const vinyl = $("vinyl"), arm = $("arm"), led = $("led");
-let current = null, busy = false;
+const vinyl = $("vinyl"), arm = $("arm"), led = $("led"), audio = $("audio"), crate = $("crate");
+let records = [], current = null, playing = false, busy = false, objectUrl = null;
 
-const crate = $("crate");
-records.forEach((r, i) => {
-  const b = document.createElement("button");
-  b.className = "sleeve";
-  b.innerHTML = `<div class="disc"></div><div class="art" style="background:${r.art}"></div>
-                 <div class="t">${r.title}</div><div class="s">${r.side}</div>`;
-  b.onclick = () => load(i);
-  crate.appendChild(b);
+/* ---------- saklama (bu tarayıcıda kalır) ---------- */
+const dbReady = new Promise((res, rej) => {
+  const r = indexedDB.open("plak-calarim", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("plaklar", { keyPath: "id" });
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
 });
+async function tx(mode, fn) {
+  const db = await dbReady;
+  return new Promise((res, rej) => {
+    const t = db.transaction("plaklar", mode), st = t.objectStore("plaklar");
+    const out = fn(st);
+    t.oncomplete = () => res(out && out.result);
+    t.onerror = () => rej(t.error);
+  });
+}
+const dbAll = () => tx("readonly", st => st.getAll());
+const dbPut = rec => tx("readwrite", st => st.put(rec));
+const dbDel = id  => tx("readwrite", st => st.delete(id));
 
+/* ---------- plak kutusu ---------- */
+function colors(hue) {
+  return { color: `hsl(${hue} 45% 38%)`, art: `linear-gradient(135deg, hsl(${hue} 45% 42%), hsl(${hue} 50% 18%))` };
+}
+function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+function render() {
+  crate.innerHTML = "";
+  const add = document.createElement("button");
+  add.className = "sleeve add";
+  add.innerHTML = `<div class="plus">+</div><div>Plak ekle</div>`;
+  add.onclick = () => $("file").click();
+  crate.appendChild(add);
+
+  records.forEach(r => {
+    const c = colors(r.hue);
+    const b = document.createElement("div");
+    b.className = "sleeve" + (current && current.id === r.id ? " playing" : "");
+    b.tabIndex = 0;
+    b.innerHTML = `<div class="disc"></div><div class="art" style="background:${c.art}"></div>
+                   <div class="t">${esc(r.title)}</div><div class="s">${esc(r.type)}</div>
+                   <button class="del" title="Plağı sil">×</button>`;
+    b.onclick = () => load(r);
+    b.onkeydown = e => { if (e.key === "Enter") load(r); };
+    b.querySelector(".del").onclick = async e => {
+      e.stopPropagation();
+      if (!confirm(`"${r.title}" plağı silinsin mi?`)) return;
+      if (current && current.id === r.id) await eject();
+      await dbDel(r.id);
+      records = records.filter(x => x.id !== r.id);
+      render();
+    };
+    crate.appendChild(b);
+  });
+}
+
+$("file").onchange = async e => {
+  for (const f of e.target.files) {
+    const rec = {
+      id: Date.now() + "-" + Math.random().toString(36).slice(2),
+      title: f.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " "),
+      type: (f.name.split(".").pop() || "ses").toUpperCase(),
+      hue: Math.floor(Math.random() * 360),
+      blob: f,
+      added: Date.now(),
+    };
+    try { await dbPut(rec); } catch (err) { alert("Bu şarkı kaydedilemedi: " + f.name); continue; }
+    records.push(rec);
+  }
+  e.target.value = "";
+  render();
+};
+
+/* ---------- plak çalar ---------- */
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function setPlaying(on) {
+  playing = on;
+  arm.classList.toggle("down", on);
+  vinyl.classList.toggle("spin", on);
+  led.classList.toggle("on", on);
+  $("play").textContent = on ? "⏸ Duraklat" : "▶ Çal";
+}
+
 async function eject() {
-  arm.classList.remove("down");
-  vinyl.classList.remove("spin");
-  led.classList.remove("on");
+  audio.pause();
+  setPlaying(false);
   await wait(500);
   vinyl.classList.remove("on");
   await wait(500);
   current = null;
-  document.querySelectorAll(".sleeve").forEach(s => s.classList.remove("playing"));
+  if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+  audio.removeAttribute("src");
   $("now").textContent = "Plak yok";
   $("play").disabled = $("eject").disabled = true;
+  render();
 }
 
-async function load(i) {
-  if (busy) return; busy = true;
-  if (current !== null) await eject();
-  const r = records[i];
-  current = i;
-  $("label").style.background = r.color;
+async function load(r) {
+  if (busy || (current && current.id === r.id)) return;
+  busy = true;
+  if (current) await eject();
+  current = r;
+  const c = colors(r.hue);
+  $("label").style.background = c.color;
   $("labelText").textContent = r.title;
-  document.querySelectorAll(".sleeve")[i].classList.add("playing");
+  objectUrl = URL.createObjectURL(r.blob);
+  audio.src = objectUrl;
+  render();
   vinyl.classList.add("on");
   await wait(700);
-  vinyl.classList.add("spin");
-  led.classList.add("on");
-  $("now").innerHTML = `<b>${r.title}</b>${r.side}`;
+  $("now").innerHTML = `<b>${esc(r.title)}</b>çalmaya hazır`;
   $("play").disabled = $("eject").disabled = false;
   busy = false;
 }
 
 $("play").onclick = async () => {
-  if (current === null || busy) return; busy = true;
-  arm.classList.add("down");
-  await wait(1200);
-  window.open(records[current].url, "_blank");
+  if (!current || busy) return;
+  if (playing) { audio.pause(); setPlaying(false); return; }
+  busy = true;
+  setPlaying(true);
+  await wait(1100);              // iğne inene kadar bekle
+  $("now").innerHTML = `<b>${esc(current.title)}</b>çalıyor`;
+  try { await audio.play(); } catch (err) { setPlaying(false); alert("Bu dosya çalınamadı."); }
   busy = false;
 };
+audio.onended = () => { setPlaying(false); if (current) $("now").innerHTML = `<b>${esc(current.title)}</b>bitti`; };
+audio.onpause = () => { if (playing && !busy) setPlaying(false); };
 $("eject").onclick = () => { if (!busy) { busy = true; eject().then(() => busy = false); } };
+
+dbAll().then(all => { records = (all || []).sort((a, b) => a.added - b.added); render(); })
+       .catch(() => render());
 </script>
 </body>
 </html>
