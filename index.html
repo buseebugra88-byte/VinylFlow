@@ -204,6 +204,79 @@
   }
   .lyrics .hint { font-size: 12px; opacity: .7; margin-top: 6px; }
   .btn.on { box-shadow: inset 0 0 0 1px var(--brass); color: var(--brass); }
+  /* ======================= SADE TASARIM ======================= */
+  body.sade {
+    background: var(--bgc, #7a5aa0); color: #fff; transition: background 1.2s ease;
+  }
+  body.sade::before, body.sade::after { display: none; }
+  body.sade h1 { color: #fff; opacity: .9; }
+  body.sade .deck { background: transparent; box-shadow: none; filter: none; }
+  body.sade .deck::before { display: none; }
+  body.sade .plate { background: none; box-shadow: none; }
+  body.sade .rest, body.sade .armbase, body.sade .knob, body.sade .knob-label,
+  body.sade .badge, body.sade .speed, body.sade .led { display: none; }
+  body.sade .arm .retro { display: none; }
+  body:not(.sade) .arm .sade-arm { display: none; }
+  body.sade .arm svg { filter: drop-shadow(4px 8px 6px rgba(0,0,0,.35)); }
+  .armring { display: none; }
+  body.sade .armring {
+    display: block; position: absolute; right: 8.2%; top: 4.6%; width: 13.5%; aspect-ratio: 1; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.28);
+  }
+  body.sade .btn { background: rgba(20,12,30,.55); color: #fff; border: 0; box-shadow: 0 4px 10px rgba(0,0,0,.25); }
+  body.sade .btn.ghost { background: rgba(20,12,30,.35); }
+  body.sade .btn:hover { background: rgba(20,12,30,.75); }
+  body.sade .now { color: #fff; }
+  body.sade .now b { color: #fff; }
+  body.sade .shelf-title, body.sade .ver { color: #fff; }
+  body.sade .drive { color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.4); }
+  body.sade .crate { background: rgba(0,0,0,.14); box-shadow: none; }
+  body.sade .lyrics { background: rgba(255,255,255,.9); filter: none; }
+
+  /* renkli mermer plak (sade tasarımda) */
+  .vinyl.marble {
+    background:
+      radial-gradient(circle closest-side, transparent 0 95.5%, rgba(0,0,0,.22) 96.5%, rgba(255,255,255,.18) 98%, transparent 99%),
+      repeating-radial-gradient(circle, rgba(0,0,0,.055) 0 1px, transparent 1px 3.5px),
+      radial-gradient(circle closest-side, rgba(255,255,255,.10), transparent 70%),
+      var(--marble);
+    box-shadow: 0 18px 40px rgba(0,0,0,.35), inset 0 0 30px rgba(0,0,0,.18);
+  }
+  .vinyl.marble::before { /* damarlar */
+    content: ""; position: absolute; inset: 0; border-radius: 50%; mix-blend-mode: multiply; opacity: .55;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .02' numOctaves='4' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .3 0 0 0 0 .35 0 0 0 -2.2 1.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+    background-size: cover;
+  }
+  .vinyl.marble::after { background: conic-gradient(from 30deg, transparent 0 8%, rgba(255,255,255,.22) 14%, transparent 22% 58%, rgba(255,255,255,.15) 64%, transparent 72%); }
+  .vinyl.marble .label { box-shadow: 0 0 0 3px rgba(255,255,255,.15), inset 0 0 0 1px rgba(0,0,0,.2); }
+  .vinyl.marble .label.cover span { display: none; }
+  .vinyl.marble .label.cover { background-size: cover !important; background-position: center !important; }
+
+  /* ======================= 3D PLAK YIĞINI ======================= */
+  .shelf-tools { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: -16px; }
+  .shelf-tools .drive { margin-top: 0; }
+  .stack {
+    position: relative; width: min(560px, 94vw); height: 600px; perspective: 1000px; perspective-origin: 50% 30%;
+    touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; outline: none;
+  }
+  .stack[hidden], .crate[hidden] { display: none; }
+  .stack .sl {
+    position: absolute; left: 50%; top: 50%; width: min(300px, 62vw); aspect-ratio: 1;
+    margin-left: calc(min(300px, 62vw) / -2); margin-top: calc(min(300px, 62vw) / -2);
+    border-radius: 4px; background-size: cover; background-position: center;
+    box-shadow: 0 2px 0 rgba(255,255,255,.25) inset, 0 16px 26px rgba(0,0,0,.45);
+    transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s, filter .35s;
+    transform-style: preserve-3d; cursor: pointer;
+  }
+  .stack .sl .cap {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 10px 7px; font-size: 13px; line-height: 1.2;
+    color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.7)); border-radius: 0 0 4px 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .stack .sl.focus { box-shadow: 0 30px 50px rgba(0,0,0,.5); }
+  .stack .sl.playing::after { content: "♪ çalıyor"; position: absolute; top: 8px; left: 8px; font-size: 12px; padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; }
+  .stack .hint { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 12px; opacity: .55; pointer-events: none; }
+  .stack .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: .7; font-style: italic; }
   .now { font-size: 14px; opacity: .85; text-align: center; min-height: 2.6em; margin-top: -10px; }
   .now b { display: block; font-size: 20px; color: var(--brass); }
   .btn {
@@ -291,6 +364,7 @@
     <div class="vinyl" id="vinyl"><div class="label" id="label"><span id="labelText"></span></div></div>
   </div>
   <div class="armbase"></div>
+  <div class="armring"></div>
   <div class="rest"></div>
   <div class="arm" id="arm" title="İğneyi tutup plağın üstüne bırak">
     <svg viewBox="0 0 40 477" aria-hidden="true">
@@ -302,6 +376,14 @@
           <stop offset="0" stop-color="#3a3a3a"/><stop offset=".5" stop-color="#8a8a8a"/><stop offset="1" stop-color="#2e2e2e"/>
         </linearGradient>
       </defs>
+      <!-- sade kol -->
+      <g class="sade-arm">
+        <line x1="20" y1="10" x2="20" y2="418" stroke="#d9d9de" stroke-width="7" stroke-linecap="round"/>
+        <line x1="20" y1="10" x2="20" y2="418" stroke="#fafafa" stroke-width="4" stroke-linecap="round"/>
+        <rect x="8" y="-30" width="24" height="44" rx="5" fill="#1c1c22"/>
+        <g transform="rotate(18 20 440)"><rect x="5" y="412" width="30" height="46" rx="6" fill="#1c1c22"/><rect x="31" y="420" width="12" height="7" rx="3" fill="#1c1c22"/></g>
+      </g>
+      <g class="retro">
       <!-- karşı ağırlık -->
       <rect x="9" y="-52" width="22" height="34" rx="4" fill="url(#cw)"/>
       <g stroke="#1e1e1e" stroke-width="1" opacity=".7"><line x1="9" y1="-44" x2="31" y2="-44"/><line x1="9" y1="-38" x2="31" y2="-38"/><line x1="9" y1="-32" x2="31" y2="-32"/><line x1="9" y1="-26" x2="31" y2="-26"/></g>
@@ -320,6 +402,7 @@
         <rect x="12" y="444" width="16" height="9" rx="1" fill="#c9a25b"/>
         <path d="M33 426 q 10 -2 12 6" fill="none" stroke="url(#chrome)" stroke-width="2.4" stroke-linecap="round"/>
       </g>
+      </g>
     </svg>
     <div class="head"></div>
   </div>
@@ -330,20 +413,28 @@
 </div>
 
 <div class="panel">
+  <button class="btn ghost" id="prev" disabled title="Önceki şarkı">⏮</button>
   <button class="btn" id="play" disabled>▶ Çal</button>
+  <button class="btn ghost" id="next" disabled title="Sonraki şarkı">⏭</button>
   <button class="btn ghost" id="eject" disabled>⏏ Çıkar</button>
   <button class="btn ghost small" id="crackle" title="Plak cızırtısı">♪ Cızırtı: açık</button>
   <button class="btn ghost small" id="lyricsBtn" title="Şarkı sözleri">📝 Sözler</button>
+  <button class="btn ghost small" id="themeBtn" title="Sade / retro görünüm">◐ Görünüm</button>
   </div>
 
 <div class="now" id="now">Plak yok</div>
 <div class="lyrics" id="lyrics" hidden></div>
 
 <div class="shelf-title">Plak kutusu</div>
-<button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
+<div class="shelf-tools">
+  <button class="drive" id="viewBtn">▦ Raf görünümü</button>
+  <button class="drive" id="addBtn">＋ Plak ekle</button>
+  <button class="drive" id="drive" hidden>☁ Drive'a bağlan</button>
+</div>
+<div class="stack" id="stack" tabindex="0" hidden></div>
 <div class="crate" id="crate"></div>
 
-<div class="ver">sürüm 20 Kasım 2026 · 18:45</div>
+<div class="ver">sürüm 21 Kasım 2026 · 20:30</div>
 <input type="file" id="coverFile" accept="image/*" hidden>
 <input type="file" id="file" accept="audio/*,video/mp4,.mp3,.m4a,.mp4,.m4v,.wav,.ogg,.flac" multiple hidden>
 <audio id="audio" preload="auto"></audio>
@@ -808,6 +899,125 @@ async function backfillCovers() {                                 // eski plakla
   if (haveToken() && records.some(r => r.coverDirty || r.lyricsDirty)) sync();
 }
 
+/* ---------- kapaktan renk (renkli plak ve sade arka plan için) ---------- */
+const colorCache = new Map();
+async function coverColor(r) {
+  if (r.vinylColor) return r.vinylColor;
+  if (!r.cover) return null;
+  if (colorCache.has(r.id)) return colorCache.get(r.id);
+  try {
+    const img = await createImageBitmap(r.cover), c = document.createElement("canvas"); c.width = c.height = 24;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data;
+    // renkli ve orta parlaklıktaki pikselleri daha çok say
+    let R = 0, G = 0, B = 0, W = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+      const sat = mx ? (mx - mn) / mx : 0, lum = (mx + mn) / 510, w = 0.05 + sat * sat * (1 - Math.abs(lum - 0.5) * 1.4);
+      R += d[i] * w; G += d[i + 1] * w; B += d[i + 2] * w; W += w;
+    }
+    const hsl = rgbToHsl(R / W, G / W, B / W);
+    r.vinylColor = hsl; colorCache.set(r.id, hsl); dbPut(r).catch(() => {});
+    return hsl;
+  } catch { return null; }
+}
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s = 0; const l = (mx + mn) / 2;
+  if (mx !== mn) {
+    const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+    h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60;
+  }
+  return [Math.round(h), Math.round(s * 100), Math.round(l * 100)];
+}
+function marbleFor([h, s]) {
+  s = Math.max(45, Math.min(85, s));
+  const c = (dl, ds = 0, dh = 0) => `hsl(${(h + dh + 360) % 360} ${Math.min(95, s + ds)}% ${dl}%)`;
+  return `radial-gradient(ellipse 55% 35% at 28% 30%, ${c(72, -10)}, transparent 70%),
+          radial-gradient(ellipse 45% 65% at 72% 62%, ${c(32, 5, -8)}, transparent 70%),
+          radial-gradient(ellipse 35% 25% at 62% 22%, ${c(60, 0, 10)}, transparent 70%),
+          radial-gradient(ellipse 40% 30% at 30% 78%, ${c(40, 5, -12)}, transparent 70%),
+          conic-gradient(from 40deg, ${c(52)}, ${c(44, 5, 8)}, ${c(58)}, ${c(40, 0, -10)}, ${c(52)})`;
+}
+
+/* ---------- görünüm: sade / retro ---------- */
+let theme = ls.get("plak-tema", "sade");
+function applyTheme() {
+  document.body.classList.toggle("sade", theme === "sade");
+  $("themeBtn").textContent = theme === "sade" ? "◐ Retro görünüm" : "◐ Sade görünüm";
+  if (typeof applyLook === "function") applyLook();
+}
+$("themeBtn").onclick = () => { theme = theme === "sade" ? "retro" : "sade"; ls.set("plak-tema", theme); applyTheme(); };
+
+/* ---------- 3D plak yığını ---------- */
+let view = ls.get("plak-gorunum", "yigin"), focusIdx = 0;
+const stack = $("stack");
+function applyView() {
+  stack.hidden = view !== "yigin"; crate.hidden = view === "yigin";
+  $("viewBtn").textContent = view === "yigin" ? "▦ Raf görünümü" : "≡ Yığın görünümü";
+  renderStack();
+}
+$("viewBtn").onclick = () => { view = view === "yigin" ? "raf" : "yigin"; ls.set("plak-gorunum", view); applyView(); };
+$("addBtn").onclick = () => $("file").click();
+function sleeveBg(r) {
+  const u = coverUrl(r);
+  return u ? `url(${u})` : colors(r.hue).art;
+}
+function renderStack() {
+  if (stack.hidden) return;
+  if (!records.length) { stack.innerHTML = `<div class="empty">Plak kutusu boş — "＋ Plak ekle" ile şarkı ekle.</div>`; return; }
+  focusIdx = Math.max(0, Math.min(records.length - 1, focusIdx));
+  const have = new Map([...stack.querySelectorAll(".sl")].map(e => [e.dataset.id, e]));
+  const keep = new Set();
+  records.forEach((r, i) => {
+    const d = i - focusIdx;
+    if (Math.abs(d) > 7) return;
+    let el = have.get(r.id);
+    if (!el) {
+      el = document.createElement("div"); el.className = "sl"; el.dataset.id = r.id;
+      el.innerHTML = `<div class="cap"></div>`;
+      el.onclick = e => { e.stopPropagation(); if (stackMoved) return; const k = records.findIndex(x => x.id === r.id); if (k === focusIdx) load(r); else { focusIdx = k; renderStack(); } };
+      stack.appendChild(el);
+    }
+    keep.add(r.id);
+    el.style.backgroundImage = sleeveBg(r).includes("url(") ? sleeveBg(r) : "";
+    if (!el.style.backgroundImage) el.style.background = sleeveBg(r);
+    el.querySelector(".cap").textContent = r.title;
+    el.classList.toggle("focus", d === 0);
+    el.classList.toggle("playing", !!(current && current.id === r.id));
+    const a = Math.abs(d), sgn = Math.sign(d);
+    let t;
+    if (d === 0) t = `translate3d(0, 0, 90px) rotateX(12deg) scale(.92)`;
+    else t = `translate3d(0, ${sgn * (150 + (a - 1) * 34)}px, ${-a * 30}px) rotateX(58deg) scale(${0.86 - a * 0.02})`;
+    el.style.transform = t;
+    el.style.zIndex = String(100 - a);
+    el.style.opacity = a > 6 ? "0" : "1";
+    el.style.filter = d === 0 ? "none" : `brightness(${1 - a * 0.06})`;
+  });
+  for (const [id, el] of have) if (!keep.has(id)) el.remove();
+  if (!stack.querySelector(".hint")) { const h = document.createElement("div"); h.className = "hint"; h.textContent = "kaydır ya da sürükle · öndeki plağa dokun"; stack.appendChild(h); }
+}
+let wheelAcc = 0, stackDrag = null, stackMoved = false;
+stack.addEventListener("wheel", e => {
+  e.preventDefault(); wheelAcc += e.deltaY;
+  if (Math.abs(wheelAcc) > 60) { focusIdx += Math.sign(wheelAcc); wheelAcc = 0; renderStack(); }
+}, { passive: false });
+stack.addEventListener("pointerdown", e => { stackDrag = { y: e.clientY, f: focusIdx }; stackMoved = false; });
+stack.addEventListener("pointermove", e => {
+  if (!stackDrag) return;
+  const steps = Math.round((stackDrag.y - e.clientY) / 45);
+  if (steps !== 0) stackMoved = true;
+  const f = Math.max(0, Math.min(records.length - 1, stackDrag.f + steps));
+  if (f !== focusIdx) { focusIdx = f; renderStack(); }
+});
+const endDrag = () => { stackDrag = null; setTimeout(() => stackMoved = false, 0); };
+stack.addEventListener("pointerup", endDrag); stack.addEventListener("pointercancel", endDrag); stack.addEventListener("pointerleave", endDrag);
+stack.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") { focusIdx++; renderStack(); e.preventDefault(); }
+  if (e.key === "ArrowUp") { focusIdx--; renderStack(); e.preventDefault(); }
+  if (e.key === "Enter" && records[focusIdx]) load(records[focusIdx]);
+});
+
 /* ---------- plak kutusu ---------- */
 const LABELS = ["#d2622f", "#b8362c", "#d9a43a", "#3f8a80", "#c9b48a", "#7b3b2a", "#e07b39", "#556b4f"];
 function colors(hue) {
@@ -828,6 +1038,7 @@ function render() {
   add.onclick = () => $("file").click();
   crate.appendChild(add);
 
+  renderStack();
   records.forEach(r => {
     const c = colors(r.hue);
     const b = document.createElement("div");
@@ -969,13 +1180,27 @@ function applySound() {
 function applyLook() {
   const shellac = rpm === 78, r = current;
   vinyl.style.setProperty("--rev", REV[rpm] || "1.8s");
-  vinyl.classList.toggle("shellac", shellac);
+  vinyl.classList.toggle("shellac", shellac && theme !== "sade");
   document.querySelectorAll("#speed button").forEach(b => b.classList.toggle("on", +b.dataset.rpm === rpm));
   if (!r) return;
-  const pic = coverUrl(r), c = colors(r.hue);
-  vinyl.classList.toggle("picture", !!pic && !shellac);
+  const pic = coverUrl(r), c = colors(r.hue), sade = theme === "sade";
+  vinyl.classList.toggle("shellac", shellac && !sade);
+  vinyl.classList.toggle("marble", sade);
+  vinyl.classList.toggle("picture", !!pic && !shellac && !sade);
+  $("label").classList.toggle("cover", sade && !!pic);
   if (pic) vinyl.style.setProperty("--pic", `url(${pic})`); else vinyl.style.removeProperty("--pic");
-  $("label").style.background = shellac ? (pic ? `url(${pic})` : "#5b1f19") : c.color;
+  $("label").style.background = (sade || shellac) && pic ? `url(${pic})` : (shellac ? "#5b1f19" : c.color);
+  if (sade) {
+    const fallback = [Math.round(r.hue) % 360, 55, 50];
+    const paint = hsl => {
+      if (current !== r) return;
+      hsl = hsl || fallback;
+      vinyl.style.setProperty("--marble", marbleFor(hsl));
+      document.body.style.setProperty("--bgc", `hsl(${hsl[0]} ${Math.min(42, Math.max(22, hsl[1] * .6))}% ${Math.min(46, Math.max(30, hsl[2] * .75))}%)`);
+    };
+    paint(r.vinylColor || null);
+    coverColor(r).then(paint);
+  }
 }
 document.querySelectorAll("#speed button").forEach(b => b.onclick = () => {
   rpm = +b.dataset.rpm; ls.set("plak-hiz", rpm);
@@ -1088,6 +1313,7 @@ async function eject() {
   $("now").textContent = "Plak yok";
   showLyrics();
   $("play").disabled = $("eject").disabled = true;
+  updateNav();
   render();
 }
 
@@ -1114,6 +1340,7 @@ async function load(r) {
   applyLook();
   $("labelText").textContent = r.title;
   showLyrics();
+  focusIdx = Math.max(0, records.findIndex(x => x.id === r.id));
   const mb = mediaBlob(r);
   audio = isVideo(r) ? videoEl : audioEl;
   objectUrl = URL.createObjectURL(mb);
@@ -1124,7 +1351,39 @@ async function load(r) {
   await wait(700);
   $("now").innerHTML = `<b>${esc(r.title)}</b>çalmaya hazır`;
   $("play").disabled = $("eject").disabled = false;
+  updateNav();
   busy = false;
+}
+
+/* ---------- önceki / sonraki ---------- */
+function neighbor(step) {
+  if (!current) return records[0] || null;
+  const i = records.findIndex(x => x.id === current.id);
+  return records[i + step] || null;
+}
+async function autoPlay() {                 // dokunuş olmadan çal (sıradaki şarkı)
+  if (!current) return;
+  setPlaying(true); busy = true;
+  await wait(1100);
+  try { audio.muted = false; await audio.play(); $("now").innerHTML = `<b>${esc(current.title)}</b>çalıyor`; }
+  catch (err) { setPlaying(false); $("now").innerHTML = `<b>${esc(current.title)}</b>çalmak için ▶'a bas`; }
+  busy = false;
+}
+async function go(step) {
+  if (busy) return;
+  if (step < 0 && current && audio.currentTime > 3) { audio.currentTime = 0; return; }
+  const n = neighbor(step); if (!n) return;
+  const wasPlaying = playing;
+  initCrackle(); if (actx && actx.state === "suspended") actx.resume();
+  await load(n);
+  focusIdx = records.findIndex(x => x.id === n.id); renderStack();
+  if (wasPlaying) autoPlay();
+}
+$("prev").onclick = () => go(-1);
+$("next").onclick = () => go(1);
+function updateNav() {
+  $("prev").disabled = !current;
+  $("next").disabled = !neighbor(1);
 }
 
 $("play").onclick = async () => {
@@ -1156,7 +1415,14 @@ function playError(err) {
   $("now").innerHTML = current ? `<b>${esc(current.title)}</b>çalınamadı` : "Plak yok";
   alert("Bu dosya çalınamadı." + (why ? "\n" + why : "") + "\n(" + (n || (audio.error ? "kod " + audio.error.code : "bilinmeyen hata")) + ")");
 }
-audio.onended = () => { setPlaying(false); if (current) $("now").innerHTML = `<b>${esc(current.title)}</b>bitti`; };
+audio.onended = async () => {
+  setPlaying(false);
+  const n = neighbor(1);
+  if (!n) { if (current) $("now").innerHTML = `<b>${esc(current.title)}</b>bitti`; return; }
+  await load(n);                                   // sıradaki plağa geç
+  focusIdx = records.findIndex(x => x.id === n.id); renderStack();
+  autoPlay();
+};
 audio.onpause = () => { if (playing && !busy) setPlaying(false); };
 /* ---------- iğneyi elle koymak ---------- */
 // İğneyi tutup plağın üstüne bırak: bıraktığın yerden çalar. Kenara geri çekersen durur.
@@ -1208,7 +1474,7 @@ arm.addEventListener("pointercancel", dropNeedle);
 
 $("eject").onclick = () => { if (!busy) { busy = true; eject().then(() => busy = false); } };
 
-applyLook(); applySound(); showVolume(false); showLyrics();
+applyTheme(); applyLook(); applySound(); showVolume(false); showLyrics(); applyView();
 // iki oynatıcı da aynı olayları dinlesin
 for (const k of ["ontimeupdate", "onloadedmetadata", "onended", "onpause"]) videoEl[k] = audioEl[k];
 
