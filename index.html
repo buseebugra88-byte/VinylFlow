@@ -434,7 +434,7 @@
 <div class="stack" id="stack" tabindex="0" hidden></div>
 <div class="crate" id="crate"></div>
 
-<div class="ver">sürüm 21 Kasım 2026 · 20:30</div>
+<div class="ver">sürüm 21 Kasım 2026 · 21:00</div>
 <input type="file" id="coverFile" accept="image/*" hidden>
 <input type="file" id="file" accept="audio/*,video/mp4,.mp3,.m4a,.mp4,.m4v,.wav,.ogg,.flac" multiple hidden>
 <audio id="audio" preload="auto"></audio>
@@ -448,9 +448,12 @@ const audioEl = $("audio"), videoEl = $("videoPlayer");
 let audio = audioEl;
 const MIME = { MP3: "audio/mpeg", M4A: "audio/mp4", AAC: "audio/aac", WAV: "audio/wav", OGG: "audio/ogg", OGA: "audio/ogg",
                OPUS: "audio/ogg", FLAC: "audio/flac", MP4: "video/mp4", M4V: "video/mp4", MOV: "video/quicktime", WEBM: "video/webm" };
-function mediaBlob(r) {                       // dosya türünü her zaman açıkça bildir
+async function mediaBlob(r) {
+  // Safari, tarayıcı deposundan (IndexedDB) okunan dosyaları oynatamıyor ("NotSupportedError").
+  // Bu yüzden şarkıyı önce belleğe kopyalıyoruz ve türünü açıkça bildiriyoruz.
   const t = MIME[r.type] || (r.blob.type && r.blob.type !== "application/octet-stream" ? r.blob.type : "audio/mpeg");
-  return r.blob.type === t ? r.blob : new Blob([r.blob], { type: t });
+  const bytes = await r.blob.arrayBuffer();
+  return new Blob([bytes], { type: t });
 }
 const isVideo = r => /^video\//.test(MIME[r.type] || r.blob.type || "");
 let records = [], current = null, playing = false, busy = false, objectUrl = null;
@@ -1341,7 +1344,9 @@ async function load(r) {
   $("labelText").textContent = r.title;
   showLyrics();
   focusIdx = Math.max(0, records.findIndex(x => x.id === r.id));
-  const mb = mediaBlob(r);
+  let mb;
+  try { mb = await mediaBlob(r); }
+  catch (e) { busy = false; current = null; alert("Bu şarkı dosyası okunamadı. Plağı silip yeniden eklemeyi dene.\n(" + (e.name || e.message) + ")"); render(); return; }
   audio = isVideo(r) ? videoEl : audioEl;
   objectUrl = URL.createObjectURL(mb);
   audio.src = objectUrl;
